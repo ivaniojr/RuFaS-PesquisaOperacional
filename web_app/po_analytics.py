@@ -126,25 +126,12 @@ def get_active_feed_rel_path(base_dir: Path) -> str:
 
 
 def get_campo_dourado_scenario_info(base_dir: Path) -> Dict[str, Any]:
-    """Retorna as informações e parâmetros do Cenário Fazenda Campo Dourado (Goiás)."""
-    active_feed = get_active_feed_rel_path(base_dir)
+    """Retorna as informações e parâmetros do Cenário da Propriedade."""
+    active_scenario_file = base_dir / "input" / "data" / "config" / "active_scenario.json"
 
-    meta_path = base_dir / "input" / "metadata" / "example_animals_only_metadata.json"
-    active_weather = "input/data/weather/example_temperate_weather.csv"
-    if meta_path.exists():
-        try:
-            with open(meta_path, "r", encoding="utf-8") as f:
-                active_weather = json.load(f).get("files", {}).get("weather", {}).get("path", active_weather)
-        except Exception:
-            pass
-
-    is_applied = (active_feed == "input/data/feed/example_Northeast_feed.json" and
-                  active_weather == "input/data/weather/BR_GO_weather.csv")
-
-    return {
+    defaults = {
         "name": "Faz. Campo Dourado (Goiás)",
         "slug": "GO_campo_dourado",
-        "state_climate": "Goiás — input/data/weather/BR_GO_weather.csv",
         "weather_file": "input/data/weather/BR_GO_weather.csv",
         "scenario_profile": "Conservador (100 vacas, foco em estabilidade)",
         "nutrient_standard": "NASEM",
@@ -152,50 +139,215 @@ def get_campo_dourado_scenario_info(base_dir: Path) -> Dict[str, Any]:
         "milking_cow_fraction": 0.8356,
         "cow_times_milked_per_day": 3,
         "formulation_interval": 45,
-        "phosphorus_requirement_buffer": 50,
+        "phosphorus_requirement_buffer": 50.0,
         "methane_mitigation_method": "3-NOP",
-        "methane_additive_amount": 90,
-        "start_date": "2015:1",
-        "end_date": "2019:365",
-        "feed_file": "input/data/feed/example_Northeast_feed.json",
-        "active_feed_file": active_feed,
-        "active_weather_file": active_weather,
-        "is_applied": is_applied
+        "methane_additive_amount": 90.0,
+        "feed_file": "input/data/feed/example_Northeast_feed.json"
     }
 
+    data = dict(defaults)
+    if active_scenario_file.exists():
+        try:
+            with open(active_scenario_file, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                data.update(saved)
+        except Exception:
+            pass
 
-def apply_campo_dourado_scenario(base_dir: Path) -> Dict[str, Any]:
+    # Carrega estados ativos reais dos arquivos
+    active_feed = get_active_feed_rel_path(base_dir)
+    meta_path = base_dir / "input" / "metadata" / "example_animals_only_metadata.json"
+    active_weather = data.get("weather_file", "input/data/weather/BR_GO_weather.csv")
+    if meta_path.exists():
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                active_weather = json.load(f).get("files", {}).get("weather", {}).get("path", active_weather)
+        except Exception:
+            pass
+
+    cfg_path = base_dir / "input" / "data" / "config" / "example_animals_only_config.json"
+    active_nutrient = data.get("nutrient_standard", "NASEM")
+    if cfg_path.exists():
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                active_nutrient = json.load(f).get("nutrient_standard", active_nutrient)
+        except Exception:
+            pass
+
+    an_path = base_dir / "input" / "data" / "animal" / "example_freestall_animal.json"
+    if an_path.exists():
+        try:
+            with open(an_path, "r", encoding="utf-8") as f:
+                a = json.load(f)
+                c_num = a.get("herd_information", {}).get("cow_num")
+                if c_num is not None:
+                    data["cow_num"] = int(c_num)
+                m_frac = a.get("herd_information", {}).get("milking_cow_fraction")
+                if m_frac is not None:
+                    data["milking_cow_fraction"] = float(m_frac)
+                cow_times = a.get("animal_config", {}).get("management_decisions", {}).get("cow_times_milked_per_day")
+                if cow_times is not None:
+                    data["cow_times_milked_per_day"] = int(cow_times)
+                interval = a.get("ration", {}).get("formulation_interval")
+                if interval is not None:
+                    data["formulation_interval"] = int(interval)
+                p_buf = a.get("ration", {}).get("phosphorus_requirement_buffer")
+                if p_buf is not None:
+                    data["phosphorus_requirement_buffer"] = float(p_buf)
+                meth = a.get("methane_mitigation", {}).get("methane_mitigation_method")
+                if meth:
+                    data["methane_mitigation_method"] = str(meth)
+                    dose = a.get("methane_mitigation", {}).get(f"{meth}_additive_amount")
+                    if dose is not None:
+                        data["methane_additive_amount"] = float(dose)
+        except Exception:
+            pass
+
+    data["active_feed_file"] = active_feed
+    data["active_weather_file"] = active_weather
+    data["nutrient_standard"] = active_nutrient
+    data["state_climate"] = f"{active_weather}"
+    data["is_applied"] = (
+        active_feed == data.get("feed_file") and
+        active_weather == data.get("weather_file") and
+        active_nutrient == data.get("nutrient_standard")
+    )
+
+    data["available_weather_files"] = [
+        {"path": "input/data/weather/BR_GO_weather.csv", "name": "Goiás (Cerrado) — BR_GO_weather.csv (2013-2022)"},
+        {"path": "input/data/weather/example_temperate_weather.csv", "name": "Clima Temperado — example_temperate_weather.csv"},
+        {"path": "input/data/weather/example_arid_weather.csv", "name": "Clima Árido — example_arid_weather.csv"},
+        {"path": "input/data/weather/example_arid_weather_w_irrigation.csv", "name": "Árido c/ Irrigação — example_arid_weather_w_irrigation.csv"}
+    ]
+
+    data["available_nutrient_standards"] = [
+        {"value": "NASEM", "name": "NASEM (2021) — Requisitos Nutricionais Modernos (Recomendado)", "description": "8ª revisão NASEM Dairy Cattle 2021"},
+        {"value": "NRC", "name": "NRC (2001) — Padrão Nutricional Clássico", "description": "7ª revisão NRC Dairy Cattle 2001"}
+    ]
+
+    data["available_feed_files"] = [
+        {"path": "input/data/feed/example_Northeast_feed.json", "name": "Northeast Dairy Feeds — example_Northeast_feed.json (Campo Dourado)"},
+        {"path": "input/data/feed/example_Midwest_feed.json", "name": "Midwest Dairy Feeds — example_Midwest_feed.json"},
+        {"path": "input/data/feed/example_Southwest_feed.json", "name": "Southwest Dairy Feeds — example_Southwest_feed.json"},
+        {"path": "input/data/feed/example_Intermountain_feed.json", "name": "Intermountain Dairy Feeds — example_Intermountain_feed.json"}
+    ]
+
+    data["available_methane_methods"] = [
+        {"value": "3-NOP", "name": "3-NOP (Bovaer — Inibidor enzimático)", "unit": "mg/kg DMI", "default_dose": 90, "min": 40, "max": 100},
+        {"value": "None", "name": "None (Sem aditivo mitigador)", "unit": "-", "default_dose": 0, "min": 0, "max": 0},
+        {"value": "Monensin", "name": "Monensina Sódica (Ionóforo)", "unit": "mg/kg DMI", "default_dose": 24, "min": 20, "max": 36},
+        {"value": "Essential Oils", "name": "Óleos Essenciais", "unit": "mg/kg DMI", "default_dose": 50, "min": 0, "max": 100},
+        {"value": "Seaweed", "name": "Macroalgas (Asparagopsis taxiformis)", "unit": "mg/kg DMI", "default_dose": 50, "min": 0, "max": 100}
+    ]
+
+    return data
+
+
+def apply_campo_dourado_scenario(base_dir: Path, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
-    Aplica todos os parâmetros do Cenário Campo Dourado aos arquivos de configuração do RuFaS:
-    - Horizonte: 2015:1 a 2019:365
-    - Clima: BR_GO_weather.csv (Goiás)
-    - Padrão nutricional: NASEM
-    - Alimentos: example_Northeast_feed.json
-    - Rebanho: 100 vacas, 83.56% lactação, 3 ordenhas/dia
-    - Reformulação: 45 dias, buffer P: 50
-    - Metano: 3-NOP (90 mg/kg MS)
+    Aplica todos os parâmetros do Cenário aos arquivos de configuração do RuFaS:
+    - Clima: série meteorológica escolhida (default: BR_GO_weather.csv)
+    - Padrão nutricional: NASEM ou NRC
+    - Arquivo de alimentos: feed_file escolhido
+    - Rebanho: cow_num, milking_cow_fraction, ordenhas/dia
+    - Reformulação: formulation_interval dias, buffer de fósforo (%)
+    - Metano: método de mitigação (3-NOP, etc.) e dosagem
     """
-    # 1. Configurações gerais
+    active_scenario_file = base_dir / "input" / "data" / "config" / "active_scenario.json"
+    current = get_campo_dourado_scenario_info(base_dir)
+
+    if params:
+        if "name" in params and params["name"]:
+            current["name"] = str(params["name"]).strip()
+        if "slug" in params and params["slug"]:
+            current["slug"] = str(params["slug"]).strip()
+        if "weather_file" in params and params["weather_file"]:
+            current["weather_file"] = str(params["weather_file"]).strip()
+        if "scenario_profile" in params and params["scenario_profile"]:
+            current["scenario_profile"] = str(params["scenario_profile"]).strip()
+        if "nutrient_standard" in params and params["nutrient_standard"]:
+            std = str(params["nutrient_standard"]).strip().upper()
+            if std in ["NASEM", "NRC"]:
+                current["nutrient_standard"] = std
+        if "cow_num" in params:
+            try:
+                current["cow_num"] = int(params["cow_num"])
+            except (ValueError, TypeError):
+                pass
+        if "milking_cow_fraction" in params:
+            try:
+                current["milking_cow_fraction"] = float(params["milking_cow_fraction"])
+            except (ValueError, TypeError):
+                pass
+        if "cow_times_milked_per_day" in params:
+            try:
+                current["cow_times_milked_per_day"] = max(1, min(4, int(params["cow_times_milked_per_day"])))
+            except (ValueError, TypeError):
+                pass
+        if "formulation_interval" in params:
+            try:
+                current["formulation_interval"] = max(1, min(365, int(params["formulation_interval"])))
+            except (ValueError, TypeError):
+                pass
+        if "phosphorus_requirement_buffer" in params:
+            try:
+                current["phosphorus_requirement_buffer"] = max(0.0, float(params["phosphorus_requirement_buffer"]))
+            except (ValueError, TypeError):
+                pass
+        if "methane_mitigation_method" in params and params["methane_mitigation_method"]:
+            meth = str(params["methane_mitigation_method"]).strip()
+            if meth in ["3-NOP", "None", "Monensin", "Essential Oils", "Seaweed"]:
+                current["methane_mitigation_method"] = meth
+        if "methane_additive_amount" in params:
+            try:
+                current["methane_additive_amount"] = max(0.0, float(params["methane_additive_amount"]))
+            except (ValueError, TypeError):
+                pass
+        if "feed_file" in params and params["feed_file"]:
+            current["feed_file"] = str(params["feed_file"]).strip()
+
+    # Salva no arquivo de persistência de cenário ativo
+    save_data = {
+        "name": current["name"],
+        "slug": current["slug"],
+        "weather_file": current["weather_file"],
+        "scenario_profile": current["scenario_profile"],
+        "nutrient_standard": current["nutrient_standard"],
+        "cow_num": current.get("cow_num", 100),
+        "milking_cow_fraction": current.get("milking_cow_fraction", 0.8356),
+        "cow_times_milked_per_day": current["cow_times_milked_per_day"],
+        "formulation_interval": current["formulation_interval"],
+        "phosphorus_requirement_buffer": current["phosphorus_requirement_buffer"],
+        "methane_mitigation_method": current["methane_mitigation_method"],
+        "methane_additive_amount": current["methane_additive_amount"],
+        "feed_file": current["feed_file"]
+    }
+    try:
+        active_scenario_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(active_scenario_file, "w", encoding="utf-8") as f:
+            json.dump(save_data, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Erro ao salvar active_scenario.json: {e}")
+
+    # 1. Configurações gerais (nutrient_standard)
     for cfg_name in ["example_animals_only_config.json", "example_freestall_config.json"]:
         cfg_file = base_dir / "input" / "data" / "config" / cfg_name
         if cfg_file.exists():
             with open(cfg_file, "r+", encoding="utf-8") as f:
                 c = json.load(f)
-                c["start_date"] = "2015:1"
-                c["end_date"] = "2019:365"
-                c["nutrient_standard"] = "NASEM"
+                c["nutrient_standard"] = current["nutrient_standard"]
                 f.seek(0)
                 json.dump(c, f, indent=4)
                 f.truncate()
 
     # 2. Arquivos de Metadados (Feed e Weather)
-    for meta_name in ["example_animals_only_metadata.json", "example_freestall_dairy_metadata.json"]:
+    for meta_name in ["example_animals_only_metadata.json", "example_freestall_dairy_metadata.json", "example_open_lot_metadata.json"]:
         meta_file = base_dir / "input" / "metadata" / meta_name
         if meta_file.exists():
             with open(meta_file, "r+", encoding="utf-8") as f:
                 m = json.load(f)
-                m.setdefault("files", {}).setdefault("feed", {})["path"] = "input/data/feed/example_Northeast_feed.json"
-                m.setdefault("files", {}).setdefault("weather", {})["path"] = "input/data/weather/BR_GO_weather.csv"
+                m.setdefault("files", {}).setdefault("feed", {})["path"] = current["feed_file"]
+                m.setdefault("files", {}).setdefault("weather", {})["path"] = current["weather_file"]
                 f.seek(0)
                 json.dump(m, f, indent=2)
                 f.truncate()
@@ -206,20 +358,32 @@ def apply_campo_dourado_scenario(base_dir: Path) -> Dict[str, Any]:
         if an_file.exists():
             with open(an_file, "r+", encoding="utf-8") as f:
                 a = json.load(f)
-                a.setdefault("herd_information", {})["cow_num"] = 100
-                a.setdefault("herd_information", {})["milking_cow_fraction"] = 0.8356
-                a.setdefault("animal_config", {}).setdefault("management_decisions", {})["cow_times_milked_per_day"] = 3
-                a.setdefault("ration", {})["formulation_interval"] = 45
-                a.setdefault("ration", {})["phosphorus_requirement_buffer"] = 50
-                a.setdefault("methane_mitigation", {})["methane_mitigation_method"] = "3-NOP"
-                a.setdefault("methane_mitigation", {})["3-NOP_additive_amount"] = 90
+                a.setdefault("herd_information", {})["cow_num"] = current.get("cow_num", 100)
+                a.setdefault("herd_information", {})["milking_cow_fraction"] = current.get("milking_cow_fraction", 0.8356)
+                a.setdefault("animal_config", {}).setdefault("management_decisions", {})["cow_times_milked_per_day"] = current["cow_times_milked_per_day"]
+                a.setdefault("ration", {})["formulation_interval"] = current["formulation_interval"]
+                a.setdefault("ration", {})["phosphorus_requirement_buffer"] = current["phosphorus_requirement_buffer"]
+                
+                mm = a.setdefault("methane_mitigation", {})
+                mm["methane_mitigation_method"] = current["methane_mitigation_method"]
+                meth = current["methane_mitigation_method"]
+                dose = current["methane_additive_amount"]
+                if meth == "3-NOP":
+                    mm["3-NOP_additive_amount"] = dose
+                elif meth == "Monensin":
+                    mm["monensin_additive_amount"] = dose
+                elif meth == "Essential Oils":
+                    mm["essential_oils_additive_amount"] = dose
+                elif meth == "Seaweed":
+                    mm["seaweed_additive_amount"] = dose
+
                 f.seek(0)
                 json.dump(a, f, indent=4)
                 f.truncate()
 
     return {
         "success": True,
-        "message": "Cenário Fazenda Campo Dourado (Goiás) aplicado com sucesso ao modelo RuFaS!",
+        "message": f"Cenário '{current['name']}' ({current['slug']}) salvo e aplicado com sucesso ao modelo RuFaS!",
         "scenario": get_campo_dourado_scenario_info(base_dir)
     }
 

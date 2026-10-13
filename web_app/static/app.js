@@ -246,21 +246,84 @@ function setupEventListeners() {
     });
   }
 
-  // Aplicar Cenário Campo Dourado
+  // Sincronização e ações do Quadro de Cenário
+  const profileSelect = document.getElementById("scenario-param-profile-select");
+  const profileInput = document.getElementById("scenario-param-profile");
+  if (profileSelect && profileInput) {
+    profileSelect.addEventListener("change", () => {
+      if (profileSelect.value !== "custom") {
+        profileInput.value = profileSelect.value;
+      }
+    });
+    profileInput.addEventListener("input", () => {
+      if (profileSelect.value !== "custom" && profileInput.value !== profileSelect.value) {
+        profileSelect.value = "custom";
+      }
+    });
+  }
+
+  const methaneSelect = document.getElementById("scenario-param-methane");
+  if (methaneSelect) {
+    methaneSelect.addEventListener("change", () => {
+      updateMethaneDoseUI(methaneSelect.value);
+    });
+  }
+
+  // Restaurar Padrões Iniciais do Cenário
+  const btnResetScenario = document.getElementById("btn-reset-scenario");
+  if (btnResetScenario) {
+    btnResetScenario.addEventListener("click", () => {
+      if (document.getElementById("scenario-param-name")) document.getElementById("scenario-param-name").value = "Faz. Campo Dourado (Goiás)";
+      if (document.getElementById("scenario-param-slug")) document.getElementById("scenario-param-slug").value = "GO_campo_dourado";
+      if (document.getElementById("scenario-param-weather")) document.getElementById("scenario-param-weather").value = "input/data/weather/BR_GO_weather.csv";
+      if (document.getElementById("scenario-param-profile-select")) document.getElementById("scenario-param-profile-select").value = "Conservador (100 vacas, foco em estabilidade)";
+      if (document.getElementById("scenario-param-profile")) document.getElementById("scenario-param-profile").value = "Conservador (100 vacas, foco em estabilidade)";
+      if (document.getElementById("scenario-param-nutrient")) document.getElementById("scenario-param-nutrient").value = "NASEM";
+      if (document.getElementById("scenario-param-cownum")) document.getElementById("scenario-param-cownum").value = 100;
+      if (document.getElementById("scenario-param-milking-fraction")) document.getElementById("scenario-param-milking-fraction").value = 0.8356;
+      if (document.getElementById("scenario-param-milking")) document.getElementById("scenario-param-milking").value = 3;
+      if (document.getElementById("scenario-param-interval")) document.getElementById("scenario-param-interval").value = 45;
+      if (document.getElementById("scenario-param-pbuffer")) document.getElementById("scenario-param-pbuffer").value = 50;
+      if (document.getElementById("scenario-param-methane")) document.getElementById("scenario-param-methane").value = "3-NOP";
+      if (document.getElementById("scenario-param-methane-dose")) document.getElementById("scenario-param-methane-dose").value = 90;
+      if (document.getElementById("scenario-param-feed")) document.getElementById("scenario-param-feed").value = "input/data/feed/example_Northeast_feed.json";
+      updateMethaneDoseUI("3-NOP");
+      showToast("Valores padrões restaurados no formulário do cenário. Clique em 'Salvar e Aplicar' para persistir.", "info");
+    });
+  }
+
+  // Salvar e Aplicar Cenário
   const btnApplyScenario = document.getElementById("btn-apply-scenario");
   if (btnApplyScenario) {
     btnApplyScenario.addEventListener("click", async () => {
       btnApplyScenario.disabled = true;
-      btnApplyScenario.innerHTML = "⏳ Aplicando Cenário...";
+      btnApplyScenario.innerHTML = "⏳ Salvando e Aplicando...";
+
+      const payload = {
+        name: document.getElementById("scenario-param-name")?.value?.trim() || "Faz. Campo Dourado (Goiás)",
+        slug: document.getElementById("scenario-param-slug")?.value?.trim() || "GO_campo_dourado",
+        weather_file: document.getElementById("scenario-param-weather")?.value || "input/data/weather/BR_GO_weather.csv",
+        scenario_profile: document.getElementById("scenario-param-profile")?.value?.trim() || "Conservador (100 vacas, foco em estabilidade)",
+        nutrient_standard: document.getElementById("scenario-param-nutrient")?.value || "NASEM",
+        cow_num: parseInt(document.getElementById("scenario-param-cownum")?.value) || 100,
+        milking_cow_fraction: parseFloat(document.getElementById("scenario-param-milking-fraction")?.value) || 0.8356,
+        cow_times_milked_per_day: parseInt(document.getElementById("scenario-param-milking")?.value) || 3,
+        formulation_interval: parseInt(document.getElementById("scenario-param-interval")?.value) || 45,
+        phosphorus_requirement_buffer: parseFloat(document.getElementById("scenario-param-pbuffer")?.value) || 50,
+        methane_mitigation_method: document.getElementById("scenario-param-methane")?.value || "3-NOP",
+        methane_additive_amount: parseFloat(document.getElementById("scenario-param-methane-dose")?.value) || 90,
+        feed_file: document.getElementById("scenario-param-feed")?.value || "input/data/feed/example_Northeast_feed.json"
+      };
+
       try {
-        const res = await fetch("/api/scenario/apply", { method: "POST" });
+        const res = await fetch("/api/scenario/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
         const data = await res.json();
         if (data.success) {
-          showToast(data.message || "Cenário Fazenda Campo Dourado aplicado com sucesso!", "success");
-          if (document.getElementById("input-start-year")) document.getElementById("input-start-year").value = 2015;
-          if (document.getElementById("input-start-day")) document.getElementById("input-start-day").value = 1;
-          if (document.getElementById("input-end-year")) document.getElementById("input-end-year").value = 2019;
-          if (document.getElementById("input-end-day")) document.getElementById("input-end-day").value = 365;
+          showToast(data.message || "Cenário configurado e aplicado com sucesso!", "success");
           await loadConfig();
         } else {
           showToast("Erro ao aplicar cenário: " + (data.error || "Desconhecido"), "error");
@@ -269,9 +332,37 @@ function setupEventListeners() {
         showToast("Erro de conexão ao aplicar cenário: " + err, "error");
       } finally {
         btnApplyScenario.disabled = false;
-        btnApplyScenario.innerHTML = "✨ Aplicar Cenário no Modelo";
+        btnApplyScenario.innerHTML = "💾 Salvar e Aplicar Cenário";
       }
     });
+  }
+}
+
+function updateMethaneDoseUI(method) {
+  const wrap = document.getElementById("scenario-methane-dose-wrap");
+  const doseInput = document.getElementById("scenario-param-methane-dose");
+  const unitLabel = document.getElementById("scenario-methane-unit");
+  if (!wrap || !doseInput) return;
+
+  if (method === "None") {
+    wrap.style.display = "none";
+    doseInput.value = 0;
+  } else {
+    wrap.style.display = "flex";
+    if (unitLabel) unitLabel.textContent = "mg/kg DMI";
+    if (method === "3-NOP") {
+      doseInput.min = 40;
+      doseInput.max = 100;
+      if (!doseInput.value || parseFloat(doseInput.value) === 0) doseInput.value = 90;
+    } else if (method === "Monensin") {
+      doseInput.min = 20;
+      doseInput.max = 36;
+      if (!doseInput.value || parseFloat(doseInput.value) === 0) doseInput.value = 24;
+    } else {
+      doseInput.min = 0;
+      doseInput.max = 100;
+      if (!doseInput.value || parseFloat(doseInput.value) === 0) doseInput.value = 50;
+    }
   }
 }
 
@@ -304,14 +395,64 @@ async function loadConfig() {
     }
 
     if (data.scenario) {
+      const s = data.scenario;
+      if (document.getElementById("scenario-param-name") && s.name) {
+        document.getElementById("scenario-param-name").value = s.name;
+      }
+      if (document.getElementById("scenario-param-slug") && s.slug) {
+        document.getElementById("scenario-param-slug").value = s.slug;
+      }
+      if (document.getElementById("scenario-param-weather") && (s.weather_file || s.active_weather_file)) {
+        document.getElementById("scenario-param-weather").value = s.active_weather_file || s.weather_file;
+      }
+      if (document.getElementById("scenario-param-profile") && s.scenario_profile) {
+        document.getElementById("scenario-param-profile").value = s.scenario_profile;
+        const profSel = document.getElementById("scenario-param-profile-select");
+        if (profSel) {
+          if (["Conservador (100 vacas, foco em estabilidade)", "Moderado (foco em eficiência alimentar)", "Intensivo (alta produtividade por vaca)"].includes(s.scenario_profile)) {
+            profSel.value = s.scenario_profile;
+          } else {
+            profSel.value = "custom";
+          }
+        }
+      }
+      if (document.getElementById("scenario-param-nutrient") && s.nutrient_standard) {
+        document.getElementById("scenario-param-nutrient").value = s.nutrient_standard;
+      }
+      if (document.getElementById("scenario-param-cownum") && s.cow_num != null) {
+        document.getElementById("scenario-param-cownum").value = s.cow_num;
+      }
+      if (document.getElementById("scenario-param-milking-fraction") && s.milking_cow_fraction != null) {
+        document.getElementById("scenario-param-milking-fraction").value = s.milking_cow_fraction;
+      }
+      if (document.getElementById("scenario-param-milking") && s.cow_times_milked_per_day != null) {
+        document.getElementById("scenario-param-milking").value = s.cow_times_milked_per_day;
+      }
+      if (document.getElementById("scenario-param-interval") && s.formulation_interval != null) {
+        document.getElementById("scenario-param-interval").value = s.formulation_interval;
+      }
+      if (document.getElementById("scenario-param-pbuffer") && s.phosphorus_requirement_buffer != null) {
+        document.getElementById("scenario-param-pbuffer").value = s.phosphorus_requirement_buffer;
+      }
+      if (document.getElementById("scenario-param-methane") && s.methane_mitigation_method) {
+        document.getElementById("scenario-param-methane").value = s.methane_mitigation_method;
+        updateMethaneDoseUI(s.methane_mitigation_method);
+      }
+      if (document.getElementById("scenario-param-methane-dose") && s.methane_additive_amount != null) {
+        document.getElementById("scenario-param-methane-dose").value = s.methane_additive_amount;
+      }
+      if (document.getElementById("scenario-param-feed") && (s.feed_file || s.active_feed_file)) {
+        document.getElementById("scenario-param-feed").value = s.active_feed_file || s.feed_file;
+      }
+
       const activeBadge = document.getElementById("badge-scenario-status");
       const indicator = document.getElementById("scenario-active-indicator");
-      if (data.scenario.is_applied) {
-        if (activeBadge) activeBadge.innerHTML = "✅ GO_campo_dourado <strong>(Ativo)</strong>";
-        if (indicator) indicator.innerHTML = "✅ Cenário Faz. Campo Dourado ativo no RuFaS";
+      if (s.is_applied) {
+        if (activeBadge) activeBadge.innerHTML = `✅ ${s.slug || "GO_campo_dourado"} <strong>(Ativo)</strong>`;
+        if (indicator) indicator.innerHTML = `✅ Cenário <strong>${s.name || "Faz. Campo Dourado"}</strong> ativo no RuFaS`;
       } else {
-        if (activeBadge) activeBadge.innerHTML = "Slug: GO_campo_dourado";
-        if (indicator) indicator.innerHTML = "⚪ Clique em 'Aplicar Cenário no Modelo' para carregar";
+        if (activeBadge) activeBadge.innerHTML = `Slug: ${s.slug || "GO_campo_dourado"}`;
+        if (indicator) indicator.innerHTML = `⚪ Clique em "Salvar e Aplicar Cenário" para sincronizar com o RuFaS`;
       }
     }
 

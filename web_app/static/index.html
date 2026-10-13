@@ -123,22 +123,25 @@
         </div>
       </div>
 
-      <!-- Quadro Separado: Parâmetros Iniciais do Cenário da Propriedade -->
+      <!-- Quadro: Parâmetros Editáveis do Cenário da Propriedade -->
       <div class="card mt-4 scenario-box-card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
           <div>
             <div style="display: flex; align-items: center; gap: 10px;">
               <span style="font-size: 26px;">🏛️</span>
               <div>
-                <h2>Parâmetros Iniciais do Cenário — Fazenda Campo Dourado (Goiás)</h2>
-                <p class="subtitle">Quadro de referência dos parâmetros iniciais zootécnicos, climáticos, nutricionais e operacionais da fazenda.</p>
+                <h2>Parâmetros do Cenário da Propriedade</h2>
+                <p class="subtitle">Quadro de parametrização zootécnica, climática, nutricional e operacional da fazenda para simulação no RuFaS.</p>
               </div>
             </div>
           </div>
-          <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <span class="badge badge-subtle" id="badge-scenario-status">Slug: GO_campo_dourado</span>
+            <button class="btn btn-secondary" id="btn-reset-scenario" style="border: 1px solid var(--border-color); font-weight: 500; font-size: 13px;" title="Restaura os valores padrões iniciais da Fazenda Campo Dourado">
+              ↺ Restaurar Padrões
+            </button>
             <button class="btn btn-primary" id="btn-apply-scenario" style="background: linear-gradient(135deg, #059669, #10b981); border: none; font-weight: 600;">
-              ✨ Aplicar Cenário no Modelo
+              💾 Salvar e Aplicar Cenário
             </button>
           </div>
         </div>
@@ -148,99 +151,193 @@
             <table class="data-table scenario-table">
               <thead>
                 <tr>
-                  <th style="width: 260px;">Item</th>
-                  <th>Valor</th>
+                  <th style="width: 250px;">Item</th>
+                  <th>Valor Configurado</th>
                   <th style="width: 260px;">Mapeamento no RuFaS</th>
                 </tr>
               </thead>
               <tbody>
+                <!-- 1. Nome -->
                 <tr>
-                  <td><strong>Nome</strong></td>
-                  <td><span style="font-weight: 600; color: #f8fafc;">Faz. Campo Dourado (Goiás)</span></td>
+                  <td>
+                    <strong>Nome</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Identificação da propriedade / cenário</div>
+                  </td>
+                  <td>
+                    <input type="text" id="scenario-param-name" class="form-control" value="Faz. Campo Dourado (Goiás)" placeholder="Ex: Faz. Campo Dourado (Goiás)">
+                  </td>
                   <td><code class="code-tag">farm_name</code></td>
                 </tr>
+
+                <!-- 2. Slug -->
                 <tr>
-                  <td><strong>Slug</strong></td>
-                  <td><span class="badge badge-subtle" style="font-family: monospace; font-size: 13px;">GO_campo_dourado</span></td>
+                  <td>
+                    <strong>Slug</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Código técnico identificador único</div>
+                  </td>
+                  <td>
+                    <input type="text" id="scenario-param-slug" class="form-control" value="GO_campo_dourado" placeholder="Ex: GO_campo_dourado" style="font-family: monospace;">
+                  </td>
                   <td><code class="code-tag">scenario_slug</code></td>
                 </tr>
+
+                <!-- 3. Estado / Clima -->
                 <tr>
-                  <td><strong>Estado / Clima</strong></td>
                   <td>
-                    <span style="font-weight: 500;">Goiás (Cerrado)</span> — 
-                    <code style="color: var(--accent-cyan);">input/data/weather/BR_GO_weather.csv</code>
+                    <strong>Estado / Clima</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Arquivo de série meteorológica diária</div>
+                  </td>
+                  <td>
+                    <select id="scenario-param-weather" class="form-control">
+                      <option value="input/data/weather/BR_GO_weather.csv">Goiás (Cerrado) — BR_GO_weather.csv (2013-2022)</option>
+                      <option value="input/data/weather/example_temperate_weather.csv">Clima Temperado — example_temperate_weather.csv</option>
+                      <option value="input/data/weather/example_arid_weather.csv">Clima Árido — example_arid_weather.csv</option>
+                      <option value="input/data/weather/example_arid_weather_w_irrigation.csv">Árido com Irrigação — example_arid_weather_w_irrigation.csv</option>
+                    </select>
                   </td>
                   <td><code class="code-tag">metadata.files.weather.path</code></td>
                 </tr>
+
+                <!-- 4. Cenário -->
                 <tr>
-                  <td><strong>Cenário</strong></td>
                   <td>
-                    <span class="badge badge-slack" style="margin-right: 6px;">Conservador</span>
-                    <span style="color: var(--text-muted);">(100 vacas, foco em estabilidade)</span>
+                    <strong>Cenário</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Diretriz e perfil operacional da fazenda</div>
+                  </td>
+                  <td>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                      <select id="scenario-param-profile-select" class="form-control" style="max-width: 170px;">
+                        <option value="Conservador (100 vacas, foco em estabilidade)">Conservador</option>
+                        <option value="Moderado (foco em eficiência alimentar)">Moderado</option>
+                        <option value="Intensivo (alta produtividade por vaca)">Intensivo</option>
+                        <option value="custom">Personalizado...</option>
+                      </select>
+                      <input type="text" id="scenario-param-profile" class="form-control" value="Conservador (100 vacas, foco em estabilidade)" placeholder="Descrição do perfil de cenário" style="flex: 1; min-width: 220px;">
+                    </div>
                   </td>
                   <td><code class="code-tag">scenario_profile</code></td>
                 </tr>
+
+                <!-- 5. Padrão nutricional (listar os padrões) -->
                 <tr>
-                  <td><strong>Padrão nutricional</strong></td>
                   <td>
-                    <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.4);">NASEM</span>
-                    <span style="color: var(--text-muted);">(config.nutrient_standard)</span>
+                    <strong>Padrão nutricional</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Norma científica de exigências nutricionais</div>
+                  </td>
+                  <td>
+                    <select id="scenario-param-nutrient" class="form-control">
+                      <option value="NASEM">NASEM (2021) — Requisitos Nutricionais Modernos (Dairy Cattle 8th rev. - Recomendado)</option>
+                      <option value="NRC">NRC (2001) — Padrão Nutricional Clássico (Dairy Cattle 7th rev.)</option>
+                    </select>
                   </td>
                   <td><code class="code-tag">config.nutrient_standard</code></td>
                 </tr>
+
+                <!-- 6. Rebanho -->
                 <tr>
-                  <td><strong>Rebanho</strong></td>
                   <td>
-                    <strong>cow_num = 100</strong>, 
-                    <strong>milking_cow_fraction = 0.8356</strong>
-                    <small style="color: var(--text-muted); display: block; font-size: 12px; margin-top: 2px;">(100 vacas totais, 83,56% em lactação contínua)</small>
+                    <strong>Rebanho</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Efetivo bovino e fração em lactação contínua</div>
+                  </td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 13px; color: var(--text-muted);">Vacas totais:</span>
+                        <input type="number" id="scenario-param-cownum" class="form-control" value="100" min="1" max="10000" step="1" style="width: 90px;">
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 13px; color: var(--text-muted);">Fração lactação:</span>
+                        <input type="number" id="scenario-param-milking-fraction" class="form-control" value="0.8356" min="0.1" max="1.0" step="0.01" style="width: 100px;">
+                        <span style="font-size: 12px; color: var(--text-dim);">(83,56%)</span>
+                      </div>
+                    </div>
                   </td>
                   <td><code class="code-tag">herd_information.cow_num</code><br><code class="code-tag">milking_cow_fraction</code></td>
                 </tr>
+
+                <!-- 7. Ordenhas/dia -->
                 <tr>
-                  <td><strong>Ordenhas/dia</strong></td>
                   <td>
-                    <span class="nutrient-pill" style="font-size: 12px; padding: 2px 8px;">cow_times_milked_per_day = 3</span>
-                    <span style="color: var(--text-muted);">(3 ordenhas diárias)</span>
+                    <strong>Ordenhas/dia</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Frequência diária de ordenhas</div>
+                  </td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <input type="number" id="scenario-param-milking" class="form-control" value="3" min="1" max="4" step="1" style="width: 90px;">
+                      <span style="font-size: 13px; color: var(--text-muted);">ordenhas por dia (1 a 4)</span>
+                    </div>
                   </td>
                   <td><code class="code-tag">cow_times_milked_per_day</code></td>
                 </tr>
+
+                <!-- 8. O intervalo de reformulação -->
                 <tr>
-                  <td><strong>Intervalo de reformulação</strong></td>
                   <td>
-                    <strong>ration.formulation_interval = 45 dias</strong>
-                    <small style="color: var(--text-muted); display: block; font-size: 12px;">(Ciclo de reavaliação periódica da dieta pelo otimizador)</small>
+                    <strong>O intervalo de reformulação</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Ciclo de reavaliação periódica da dieta pelo otimizador</div>
+                  </td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <input type="number" id="scenario-param-interval" class="form-control" value="45" min="1" max="365" step="1" style="width: 100px;">
+                      <span style="font-size: 13px; color: var(--text-muted);">dias (reavaliação e reotimização de ração)</span>
+                    </div>
                   </td>
                   <td><code class="code-tag">animal.ration.formulation_interval</code></td>
                 </tr>
+
+                <!-- 9. Buffer de fósforo -->
                 <tr>
-                  <td><strong>Buffer de fósforo</strong></td>
                   <td>
-                    <strong>ration.phosphorus_requirement_buffer = 50</strong>
-                    <span style="color: var(--accent-amber); font-size: 12px; font-weight: 500;">(= 150% do requisito calculado)</span>
+                    <strong>Buffer de fósforo</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Margem percentual de segurança sobre o requisito de P</div>
+                  </td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <input type="number" id="scenario-param-pbuffer" class="form-control" value="50" min="0" max="200" step="5" style="width: 100px;">
+                      <span style="font-size: 13px; color: var(--accent-amber); font-weight: 500;">% (= 150% do requisito calculado)</span>
+                    </div>
                   </td>
                   <td><code class="code-tag">ration.phosphorus_requirement_buffer</code></td>
                 </tr>
+
+                <!-- 10. Mitigação do metano -->
                 <tr>
-                  <td><strong>Mitigação de metano</strong></td>
                   <td>
-                    <span class="badge badge-slack">3-NOP</span>
-                    <span>(3-NOP_additive_amount = <strong>90</strong> mg/kg MS)</span>
+                    <strong>Mitigação do metano</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Aditivo alimentar redutor de emissão entérica CH₄</div>
                   </td>
-                  <td><code class="code-tag">methane_mitigation.3-NOP</code></td>
-                </tr>
-                <tr>
-                  <td><strong>Período de simulação</strong></td>
                   <td>
-                    <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); font-size: 13px;">2015:1 → 2019:365</span>
-                    <span style="color: var(--text-muted); font-size: 12px;">(5 anos completos de horizonte biofísico)</span>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                      <select id="scenario-param-methane" class="form-control" style="min-width: 210px;">
+                        <option value="3-NOP">3-NOP (Bovaer — Inibidor enzimático)</option>
+                        <option value="None">None (Sem mitigação)</option>
+                        <option value="Monensin">Monensina Sódica (Ionóforo)</option>
+                        <option value="Essential Oils">Óleos Essenciais</option>
+                        <option value="Seaweed">Macroalgas (Asparagopsis taxiformis)</option>
+                      </select>
+                      <div id="scenario-methane-dose-wrap" style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 13px; color: var(--text-muted);">Dose:</span>
+                        <input type="number" id="scenario-param-methane-dose" class="form-control" value="90" min="0" max="150" step="5" style="width: 90px;">
+                        <span id="scenario-methane-unit" style="font-size: 12px; color: var(--text-muted);">mg/kg DMI</span>
+                      </div>
+                    </div>
                   </td>
-                  <td><code class="code-tag">start_date / end_date</code></td>
+                  <td><code class="code-tag">methane_mitigation.*</code></td>
                 </tr>
+
+                <!-- 11. Arquivo de alimentação -->
                 <tr>
-                  <td><strong>Arquivo de alimentação</strong></td>
                   <td>
-                    <code style="color: var(--accent-cyan); font-weight: 500;">input/data/feed/example_Northeast_feed.json</code>
+                    <strong>Arquivo de alimentação</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Biblioteca de alimentos e preços cadastrados</div>
+                  </td>
+                  <td>
+                    <select id="scenario-param-feed" class="form-control">
+                      <option value="input/data/feed/example_Northeast_feed.json">Northeast Dairy Feeds — example_Northeast_feed.json (Campo Dourado)</option>
+                      <option value="input/data/feed/example_Midwest_feed.json">Midwest Dairy Feeds — example_Midwest_feed.json</option>
+                      <option value="input/data/feed/example_Southwest_feed.json">Southwest Dairy Feeds — example_Southwest_feed.json</option>
+                      <option value="input/data/feed/example_Intermountain_feed.json">Intermountain Dairy Feeds — example_Intermountain_feed.json</option>
+                    </select>
                   </td>
                   <td><code class="code-tag">metadata.files.feed.path</code></td>
                 </tr>
@@ -249,7 +346,7 @@
           </div>
           <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <span style="font-size: 12.5px; color: var(--text-dim);">
-              💡 <em>Ao clicar em <strong>"Aplicar Cenário no Modelo"</strong>, todas as variáveis zootécnicas, datas, clima de Goiás e biblioteca de ração são carregadas e configuradas automaticamente.</em>
+              💡 <em>Ao clicar em <strong>"Salvar e Aplicar Cenário"</strong>, todos os arquivos de configuração (metadata, animais, biblioteca de ração e clima) são sincronizados e atualizados no modelo RuFaS.</em>
             </span>
             <span id="scenario-active-indicator" style="font-size: 12px; color: var(--accent-green); font-weight: 500;">
               ✓ Pronto para carregar

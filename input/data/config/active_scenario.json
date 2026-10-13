@@ -1,0 +1,15 @@
+{
+    "name": "Faz. Campo Dourado (Goiás)",
+    "slug": "GO_campo_dourado",
+    "weather_file": "input/data/weather/BR_GO_weather.csv",
+    "scenario_profile": "Conservador (100 vacas, foco em estabilidade)",
+    "nutrient_standard": "NASEM",
+    "cow_num": 100,
+    "milking_cow_fraction": 0.8356,
+    "cow_times_milked_per_day": 3,
+    "formulation_interval": 45,
+    "phosphorus_requirement_buffer": 50.0,
+    "methane_mitigation_method": "3-NOP",
+    "methane_additive_amount": 90.0,
+    "feed_file": "input/data/feed/example_Northeast_feed.json"
+}

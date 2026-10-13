@@ -768,13 +768,34 @@ select.form-control {
 }
 
 .scenario-table td {
-  padding: 11px 16px;
+  padding: 10px 14px;
   vertical-align: middle;
   font-size: 13.5px;
 }
 
 .scenario-table tr:hover td {
   background: rgba(255, 255, 255, 0.03);
+}
+
+.scenario-table .form-control {
+  padding: 8px 12px;
+  font-size: 13.5px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  color: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.scenario-table .form-control:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.scenario-table select.form-control {
+  appearance: auto;
+  cursor: pointer;
 }
 
 .code-tag {

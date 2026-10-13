@@ -6,5 +6,5 @@
     "nutrient_standard": "NASEM",
     "FIPS_county_code": 55025,
     "include_detailed_values": false,
-    "optimization_mode": "linear"
+    "optimization_mode": "nonlinear"
 }

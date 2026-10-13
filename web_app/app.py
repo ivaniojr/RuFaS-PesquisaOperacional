@@ -179,7 +179,8 @@ def get_scenario_route():
 @app.route("/api/scenario/apply", methods=["POST"])
 def apply_scenario_route():
     try:
-        result = apply_campo_dourado_scenario(BASE_DIR)
+        data = request.json or {}
+        result = apply_campo_dourado_scenario(BASE_DIR, data)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

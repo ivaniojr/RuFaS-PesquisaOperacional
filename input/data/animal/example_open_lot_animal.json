@@ -278,7 +278,7 @@
     },
     "methane_mitigation": {
         "methane_mitigation_method": "3-NOP",
-        "3-NOP_additive_amount": 90,
+        "3-NOP_additive_amount": 90.0,
         "monensin_additive_amount": 24,
         "essential_oils_additive_amount": 0,
         "seaweed_additive_amount": 0
@@ -296,7 +296,7 @@
         }
     },
     "ration": {
-        "phosphorus_requirement_buffer": 50,
+        "phosphorus_requirement_buffer": 50.0,
         "user_input": true,
         "formulation_interval": 45,
         "maximum_ration_reformulation_attempts": 250
