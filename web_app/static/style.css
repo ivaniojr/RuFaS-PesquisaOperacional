@@ -760,3 +760,32 @@ select.form-control {
   }
 }
 
+/* Scenario Card & Table */
+.scenario-box-card {
+  border-left: 4px solid var(--accent-green) !important;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.95) 100%);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.scenario-table td {
+  padding: 11px 16px;
+  vertical-align: middle;
+  font-size: 13.5px;
+}
+
+.scenario-table tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.code-tag {
+  font-family: monospace;
+  font-size: 11.5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: #94a3b8;
+  display: inline-block;
+}
+
+

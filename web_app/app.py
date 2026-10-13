@@ -17,6 +17,9 @@ try:
     from web_app.po_analytics import (
         get_all_feed_names,
         get_available_feeds_catalog,
+        get_active_feed_rel_path,
+        get_campo_dourado_scenario_info,
+        apply_campo_dourado_scenario,
         update_feeds_file,
         analyze_po_results,
         run_sensitivity_analysis,
@@ -27,6 +30,9 @@ except ModuleNotFoundError:
     from po_analytics import (
         get_all_feed_names,
         get_available_feeds_catalog,
+        get_active_feed_rel_path,
+        get_campo_dourado_scenario_info,
+        apply_campo_dourado_scenario,
         update_feeds_file,
         analyze_po_results,
         run_sensitivity_analysis,
@@ -119,7 +125,8 @@ def get_config():
         # Feeds and costs enriched with catalog metadata
         feed_names = get_feed_names()
         catalog_map = {item["id"]: item for item in get_available_feeds_catalog(BASE_DIR)}
-        feed_config_path = BASE_DIR / "input" / "data" / "feed" / "example_Midwest_feed.json"
+        active_feed_rel = get_active_feed_rel_path(BASE_DIR)
+        feed_config_path = BASE_DIR / active_feed_rel
         feeds_list = []
         calf_feed_ids = {202, 216}  # Alimentos exclusivos de bezerros em aleitamento líquido
         if feed_config_path.exists():
@@ -142,6 +149,8 @@ def get_config():
                         "tdn": cat_info.get("tdn", 0.0)
                     })
 
+        scenario_info = get_campo_dourado_scenario_info(BASE_DIR)
+
         return jsonify({
             "current_task": current_task_path,
             "available_tasks": available_tasks,
@@ -151,9 +160,27 @@ def get_config():
             "start_day": start_day,
             "end_year": end_year,
             "end_day": end_day,
-            "total_days": (end_day - start_day + 1) if start_year == end_year else 365,
+            "total_days": (end_day - start_day + 1) if start_year == end_year else (365 * (end_year - start_year + 1)),
+            "active_feed_file": active_feed_rel,
+            "scenario": scenario_info,
             "feeds": feeds_list
         })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/scenario", methods=["GET"])
+def get_scenario_route():
+    try:
+        info = get_campo_dourado_scenario_info(BASE_DIR)
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/scenario/apply", methods=["POST"])
+def apply_scenario_route():
+    try:
+        result = apply_campo_dourado_scenario(BASE_DIR)
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -170,7 +197,8 @@ def save_feeds_route():
     try:
         data = request.json or {}
         feeds = data.get("feeds", [])
-        result = update_feeds_file(BASE_DIR, feeds)
+        active_feed_rel = get_active_feed_rel_path(BASE_DIR)
+        result = update_feeds_file(BASE_DIR, feeds, feed_rel_path=active_feed_rel)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

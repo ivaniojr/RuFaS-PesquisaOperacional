@@ -112,17 +112,127 @@ def get_available_feeds_catalog(base_dir: Path) -> List[Dict[str, Any]]:
     return catalog
 
 
-def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+def get_active_feed_rel_path(base_dir: Path) -> str:
+    """Retorna o caminho relativo do arquivo de alimentos ativo no metadata."""
+    meta_path = base_dir / "input" / "metadata" / "example_animals_only_metadata.json"
+    if meta_path.exists():
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                m = json.load(f)
+                return m.get("files", {}).get("feed", {}).get("path", "input/data/feed/example_Midwest_feed.json")
+        except Exception:
+            pass
+    return "input/data/feed/example_Midwest_feed.json"
+
+
+def get_campo_dourado_scenario_info(base_dir: Path) -> Dict[str, Any]:
+    """Retorna as informações e parâmetros do Cenário Fazenda Campo Dourado (Goiás)."""
+    active_feed = get_active_feed_rel_path(base_dir)
+
+    meta_path = base_dir / "input" / "metadata" / "example_animals_only_metadata.json"
+    active_weather = "input/data/weather/example_temperate_weather.csv"
+    if meta_path.exists():
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                active_weather = json.load(f).get("files", {}).get("weather", {}).get("path", active_weather)
+        except Exception:
+            pass
+
+    is_applied = (active_feed == "input/data/feed/example_Northeast_feed.json" and
+                  active_weather == "input/data/weather/BR_GO_weather.csv")
+
+    return {
+        "name": "Faz. Campo Dourado (Goiás)",
+        "slug": "GO_campo_dourado",
+        "state_climate": "Goiás — input/data/weather/BR_GO_weather.csv",
+        "weather_file": "input/data/weather/BR_GO_weather.csv",
+        "scenario_profile": "Conservador (100 vacas, foco em estabilidade)",
+        "nutrient_standard": "NASEM",
+        "cow_num": 100,
+        "milking_cow_fraction": 0.8356,
+        "cow_times_milked_per_day": 3,
+        "formulation_interval": 45,
+        "phosphorus_requirement_buffer": 50,
+        "methane_mitigation_method": "3-NOP",
+        "methane_additive_amount": 90,
+        "start_date": "2015:1",
+        "end_date": "2019:365",
+        "feed_file": "input/data/feed/example_Northeast_feed.json",
+        "active_feed_file": active_feed,
+        "active_weather_file": active_weather,
+        "is_applied": is_applied
+    }
+
+
+def apply_campo_dourado_scenario(base_dir: Path) -> Dict[str, Any]:
     """
-    Atualiza o arquivo example_Midwest_feed.json incluindo novos insumos ou retirando
-    insumos removidos pelo usuário na interface web. Garante que:
-    1. A lista top-level 'feeds' reflita exatamente os insumos ativos com seus preços e buffers.
-    2. Alimentos de bezerros (202, 216) sejam mantidos caso existam no arquivo original.
-    3. As rações de lactação ('lac_cow') recebam todos os novos insumos ativos.
-    4. As rações de recria ('growing') e pré-parto ('close_up') não referenciem insumos removidos.
-    5. As porcentagens das rações sejam renormalizadas para somar exatamente 100.0%.
+    Aplica todos os parâmetros do Cenário Campo Dourado aos arquivos de configuração do RuFaS:
+    - Horizonte: 2015:1 a 2019:365
+    - Clima: BR_GO_weather.csv (Goiás)
+    - Padrão nutricional: NASEM
+    - Alimentos: example_Northeast_feed.json
+    - Rebanho: 100 vacas, 83.56% lactação, 3 ordenhas/dia
+    - Reformulação: 45 dias, buffer P: 50
+    - Metano: 3-NOP (90 mg/kg MS)
     """
-    cfg_path = base_dir / "input" / "data" / "feed" / "example_Midwest_feed.json"
+    # 1. Configurações gerais
+    for cfg_name in ["example_animals_only_config.json", "example_freestall_config.json"]:
+        cfg_file = base_dir / "input" / "data" / "config" / cfg_name
+        if cfg_file.exists():
+            with open(cfg_file, "r+", encoding="utf-8") as f:
+                c = json.load(f)
+                c["start_date"] = "2015:1"
+                c["end_date"] = "2019:365"
+                c["nutrient_standard"] = "NASEM"
+                f.seek(0)
+                json.dump(c, f, indent=4)
+                f.truncate()
+
+    # 2. Arquivos de Metadados (Feed e Weather)
+    for meta_name in ["example_animals_only_metadata.json", "example_freestall_dairy_metadata.json"]:
+        meta_file = base_dir / "input" / "metadata" / meta_name
+        if meta_file.exists():
+            with open(meta_file, "r+", encoding="utf-8") as f:
+                m = json.load(f)
+                m.setdefault("files", {}).setdefault("feed", {})["path"] = "input/data/feed/example_Northeast_feed.json"
+                m.setdefault("files", {}).setdefault("weather", {})["path"] = "input/data/weather/BR_GO_weather.csv"
+                f.seek(0)
+                json.dump(m, f, indent=2)
+                f.truncate()
+
+    # 3. Parâmetros de Animais (Rebanho, Ordenhas, Manejo, Metano e Buffer P)
+    for an_name in ["example_freestall_animal.json", "example_open_lot_animal.json"]:
+        an_file = base_dir / "input" / "data" / "animal" / an_name
+        if an_file.exists():
+            with open(an_file, "r+", encoding="utf-8") as f:
+                a = json.load(f)
+                a.setdefault("herd_information", {})["cow_num"] = 100
+                a.setdefault("herd_information", {})["milking_cow_fraction"] = 0.8356
+                a.setdefault("animal_config", {}).setdefault("management_decisions", {})["cow_times_milked_per_day"] = 3
+                a.setdefault("ration", {})["formulation_interval"] = 45
+                a.setdefault("ration", {})["phosphorus_requirement_buffer"] = 50
+                a.setdefault("methane_mitigation", {})["methane_mitigation_method"] = "3-NOP"
+                a.setdefault("methane_mitigation", {})["3-NOP_additive_amount"] = 90
+                f.seek(0)
+                json.dump(a, f, indent=4)
+                f.truncate()
+
+    return {
+        "success": True,
+        "message": "Cenário Fazenda Campo Dourado (Goiás) aplicado com sucesso ao modelo RuFaS!",
+        "scenario": get_campo_dourado_scenario_info(base_dir)
+    }
+
+
+def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]], feed_rel_path: str = None) -> Dict[str, Any]:
+    """
+    Atualiza o arquivo de alimentos (default: arquivo ativo no metadata) incluindo novos insumos
+    ou retirando insumos removidos pelo usuário na interface web.
+    """
+    if not feed_rel_path:
+        feed_rel_path = get_active_feed_rel_path(base_dir)
+
+    cfg_path = base_dir / feed_rel_path
     if not cfg_path.exists():
         raise FileNotFoundError(f"Arquivo de configuração de ração não encontrado: {cfg_path}")
 

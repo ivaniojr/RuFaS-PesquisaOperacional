@@ -245,6 +245,34 @@ function setupEventListeners() {
       }
     });
   }
+
+  // Aplicar Cenário Campo Dourado
+  const btnApplyScenario = document.getElementById("btn-apply-scenario");
+  if (btnApplyScenario) {
+    btnApplyScenario.addEventListener("click", async () => {
+      btnApplyScenario.disabled = true;
+      btnApplyScenario.innerHTML = "⏳ Aplicando Cenário...";
+      try {
+        const res = await fetch("/api/scenario/apply", { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message || "Cenário Fazenda Campo Dourado aplicado com sucesso!", "success");
+          if (document.getElementById("input-start-year")) document.getElementById("input-start-year").value = 2015;
+          if (document.getElementById("input-start-day")) document.getElementById("input-start-day").value = 1;
+          if (document.getElementById("input-end-year")) document.getElementById("input-end-year").value = 2019;
+          if (document.getElementById("input-end-day")) document.getElementById("input-end-day").value = 365;
+          await loadConfig();
+        } else {
+          showToast("Erro ao aplicar cenário: " + (data.error || "Desconhecido"), "error");
+        }
+      } catch (err) {
+        showToast("Erro de conexão ao aplicar cenário: " + err, "error");
+      } finally {
+        btnApplyScenario.disabled = false;
+        btnApplyScenario.innerHTML = "✨ Aplicar Cenário no Modelo";
+      }
+    });
+  }
 }
 
 // 1. Load Configurations
@@ -273,6 +301,18 @@ async function loadConfig() {
 
     if (document.getElementById("select-opt-mode") && data.optimization_mode) {
       document.getElementById("select-opt-mode").value = data.optimization_mode;
+    }
+
+    if (data.scenario) {
+      const activeBadge = document.getElementById("badge-scenario-status");
+      const indicator = document.getElementById("scenario-active-indicator");
+      if (data.scenario.is_applied) {
+        if (activeBadge) activeBadge.innerHTML = "✅ GO_campo_dourado <strong>(Ativo)</strong>";
+        if (indicator) indicator.innerHTML = "✅ Cenário Faz. Campo Dourado ativo no RuFaS";
+      } else {
+        if (activeBadge) activeBadge.innerHTML = "Slug: GO_campo_dourado";
+        if (indicator) indicator.innerHTML = "⚪ Clique em 'Aplicar Cenário no Modelo' para carregar";
+      }
     }
 
     feedsData = data.feeds || [];
