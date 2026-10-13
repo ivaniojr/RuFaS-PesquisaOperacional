@@ -70,43 +70,85 @@ def get_feed_prices(base_dir: Path) -> Dict[int, float]:
     return prices
 
 
-def get_available_feeds_catalog(base_dir: Path) -> List[Dict[str, Any]]:
+def get_available_feeds_catalog(base_dir: Path, nutrient_standard: str = "NASEM") -> List[Dict[str, Any]]:
     """
-    Retorna o catálogo completo de alimentos validados da tabela NASEM_Comp_with_TDN.csv,
+    Retorna o catálogo completo de alimentos validados da tabela correspondente ao padrão
+    (NASEM_Comp_with_TDN_urea.csv para NASEM, ou NRC_comp.csv para NRC),
     com teores nutricionais (PB, FDN, NDT, etc.) para seleção no painel web.
     """
     catalog: List[Dict[str, Any]] = []
-    nasem_csv = base_dir / "input" / "data" / "feed" / "NASEM_Comp_with_TDN.csv"
-    if not nasem_csv.exists():
-        return catalog
+    feed_names = get_all_feed_names(base_dir)
+    std_upper = (nutrient_standard or "NASEM").strip().upper()
 
-    with open(nasem_csv, mode="r", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            try:
-                f_id = int(row["rufas_id"])
-                name = row.get("Name", "").strip()
-                category = row.get("Fd_Category", "").strip()
-                feed_type = row.get("feed_type", "").strip()
-                cp = float(row.get("CP", 0.0))
-                ndf = float(row.get("NDF", 0.0))
-                tdn = float(row.get("TDN", 0.0))
-                de = float(row.get("DE", 0.0))
+    if std_upper == "NRC":
+        nrc_csv = base_dir / "input" / "data" / "feed" / "NRC_comp.csv"
+        if not nrc_csv.exists():
+            return catalog
 
-                label = f"#{f_id} - {name} ({feed_type} | PB: {cp:.1f}%, FDN: {ndf:.1f}%)"
-                catalog.append({
-                    "id": f_id,
-                    "name": name,
-                    "category": category,
-                    "type": feed_type,
-                    "cp": round(cp, 2),
-                    "ndf": round(ndf, 2),
-                    "tdn": round(tdn, 2),
-                    "de": round(de, 2),
-                    "label": label
-                })
-            except (ValueError, KeyError):
-                continue
+        with open(nrc_csv, mode="r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    f_id = int(row["rufas_id"])
+                    name = feed_names.get(f_id, f"Alimento NRC #{f_id}")
+                    category = row.get("Fd_Category", "").strip()
+                    feed_type = row.get("feed_type", "").strip()
+                    cp = float(row.get("CP", 0.0))
+                    ndf = float(row.get("NDF", 0.0))
+                    tdn = float(row.get("TDN", 0.0))
+                    de = float(row.get("DE", 0.0))
+
+                    label = f"#{f_id} - {name} ({feed_type} | PB: {cp:.1f}%, FDN: {ndf:.1f}%, NDT: {tdn:.1f}%)"
+                    catalog.append({
+                        "id": f_id,
+                        "name": name,
+                        "category": category,
+                        "type": feed_type,
+                        "cp": round(cp, 2),
+                        "ndf": round(ndf, 2),
+                        "tdn": round(tdn, 2),
+                        "de": round(de, 2),
+                        "label": label,
+                        "standard": "NRC"
+                    })
+                except (ValueError, KeyError):
+                    continue
+    else:
+        # Padrão NASEM
+        nasem_csv = base_dir / "input" / "data" / "feed" / "NASEM_Comp_with_TDN_urea.csv"
+        if not nasem_csv.exists():
+            nasem_csv = base_dir / "input" / "data" / "feed" / "NASEM_Comp_with_TDN.csv"
+        if not nasem_csv.exists():
+            return catalog
+
+        with open(nasem_csv, mode="r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    f_id = int(row["rufas_id"])
+                    name = row.get("Name", "").strip() or feed_names.get(f_id, f"Alimento #{f_id}")
+                    category = row.get("Fd_Category", "").strip()
+                    feed_type = row.get("feed_type", "").strip()
+                    cp = float(row.get("CP", 0.0))
+                    ndf = float(row.get("NDF", 0.0))
+                    tdn = float(row.get("TDN", 0.0))
+                    de = float(row.get("DE", 0.0))
+
+                    label = f"#{f_id} - {name} ({feed_type} | PB: {cp:.1f}%, FDN: {ndf:.1f}%, NDT: {tdn:.1f}%)"
+                    catalog.append({
+                        "id": f_id,
+                        "name": name,
+                        "category": category,
+                        "type": feed_type,
+                        "cp": round(cp, 2),
+                        "ndf": round(ndf, 2),
+                        "tdn": round(tdn, 2),
+                        "de": round(de, 2),
+                        "label": label,
+                        "standard": "NASEM"
+                    })
+                except (ValueError, KeyError):
+                    continue
 
     catalog.sort(key=lambda x: x["name"])
     return catalog
@@ -255,6 +297,8 @@ def apply_campo_dourado_scenario(base_dir: Path, params: Optional[Dict[str, Any]
     """
     active_scenario_file = base_dir / "input" / "data" / "config" / "active_scenario.json"
     current = get_campo_dourado_scenario_info(base_dir)
+    old_standard = current.get("nutrient_standard", "NASEM")
+    standard_changed = False
 
     if params:
         if "name" in params and params["name"]:
@@ -268,6 +312,8 @@ def apply_campo_dourado_scenario(base_dir: Path, params: Optional[Dict[str, Any]
         if "nutrient_standard" in params and params["nutrient_standard"]:
             std = str(params["nutrient_standard"]).strip().upper()
             if std in ["NASEM", "NRC"]:
+                if std != old_standard:
+                    standard_changed = True
                 current["nutrient_standard"] = std
         if "cow_num" in params:
             try:
@@ -381,9 +427,22 @@ def apply_campo_dourado_scenario(base_dir: Path, params: Optional[Dict[str, Any]
                 json.dump(a, f, indent=4)
                 f.truncate()
 
+    if standard_changed:
+        # Quando o padrão nutricional muda (ex: NASEM -> NRC ou vice-versa),
+        # limpa a lista de insumos ativos da ração para permitir recarga limpa da biblioteca correspondente
+        try:
+            update_feeds_file(base_dir, [], feed_rel_path=current["feed_file"])
+        except Exception as e:
+            print(f"Erro ao limpar insumos na troca de padrão: {e}")
+
+    success_msg = f"Cenário '{current['name']}' ({current['slug']}) salvo e aplicado com sucesso ao modelo RuFaS!"
+    if standard_changed:
+        success_msg += f" O padrão foi alterado para {current['nutrient_standard']} e a tabela de insumos foi limpa para a nova biblioteca."
+
     return {
         "success": True,
-        "message": f"Cenário '{current['name']}' ({current['slug']}) salvo e aplicado com sucesso ao modelo RuFaS!",
+        "message": success_msg,
+        "standard_changed": standard_changed,
         "scenario": get_campo_dourado_scenario_info(base_dir)
     }
 
@@ -485,6 +544,33 @@ def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]], feed_rel
         "message": f"Configuração de insumos atualizada com sucesso! ({len(user_active_feeds)} insumos ativos na formulação)",
         "active_feeds_count": len(user_active_feeds)
     }
+
+
+def load_preset_feeds_for_standard(base_dir: Path, nutrient_standard: str = "NASEM") -> Dict[str, Any]:
+    """Carrega uma dieta pré-definida e balanceada de alimentos para o padrão especificado (NRC ou NASEM)."""
+    std = (nutrient_standard or "NASEM").strip().upper()
+    if std == "NRC":
+        preset_feeds = [
+            {"id": 51, "cost": 0.045, "buffer": 0.15},   # Corn silage, mid maturity
+            {"id": 44, "cost": 0.180, "buffer": 0.15},   # Corn grain, ground, dry
+            {"id": 167, "cost": 0.380, "buffer": 0.15},  # Soybean meal, solvent 48% CP
+            {"id": 18, "cost": 0.120, "buffer": 0.15},   # Bermudagrass / Grass Hay
+            {"id": 1, "cost": 0.220, "buffer": 0.15},    # Alfalfa meal
+            {"id": 23, "cost": 0.280, "buffer": 0.15},   # Canola meal
+        ]
+    else:
+        preset_feeds = [
+            {"id": 51, "cost": 0.045, "buffer": 0.15},   # Corn silage, mid maturity
+            {"id": 44, "cost": 0.180, "buffer": 0.15},   # Corn grain, ground, dry
+            {"id": 167, "cost": 0.380, "buffer": 0.15},  # Soybean meal, solvent 48CP
+            {"id": 18, "cost": 0.120, "buffer": 0.15},   # Bermudagrass Hay
+            {"id": 23, "cost": 0.280, "buffer": 0.15},   # Canola meal
+            {"id": 176, "cost": 0.240, "buffer": 0.15},  # Corn distillers grains
+        ]
+    active_feed_rel = get_active_feed_rel_path(base_dir)
+    res = update_feeds_file(base_dir, preset_feeds, feed_rel_path=active_feed_rel)
+    res["message"] = f"Dieta sugerida para {std} carregada com sucesso! ({len(preset_feeds)} insumos balanceados)"
+    return res
 
 
 def analyze_po_results(base_dir: Path, milk_price: float = 0.45) -> Dict[str, Any]:

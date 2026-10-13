@@ -21,6 +21,7 @@ try:
         get_campo_dourado_scenario_info,
         apply_campo_dourado_scenario,
         update_feeds_file,
+        load_preset_feeds_for_standard,
         analyze_po_results,
         run_sensitivity_analysis,
         generate_po_csv_report,
@@ -34,6 +35,7 @@ except ModuleNotFoundError:
         get_campo_dourado_scenario_info,
         apply_campo_dourado_scenario,
         update_feeds_file,
+        load_preset_feeds_for_standard,
         analyze_po_results,
         run_sensitivity_analysis,
         generate_po_csv_report,
@@ -122,9 +124,12 @@ def get_config():
                 sim_type = c_data.get("simulation_type", "animals_only")
                 opt_mode = c_data.get("optimization_mode", "nonlinear")
 
+        scenario_info = get_campo_dourado_scenario_info(BASE_DIR)
+        nutrient_standard = scenario_info.get("nutrient_standard", "NASEM")
+
         # Feeds and costs enriched with catalog metadata
-        feed_names = get_feed_names()
-        catalog_map = {item["id"]: item for item in get_available_feeds_catalog(BASE_DIR)}
+        feed_names = get_all_feed_names(BASE_DIR)
+        catalog_map = {item["id"]: item for item in get_available_feeds_catalog(BASE_DIR, nutrient_standard=nutrient_standard)}
         active_feed_rel = get_active_feed_rel_path(BASE_DIR)
         feed_config_path = BASE_DIR / active_feed_rel
         feeds_list = []
@@ -188,7 +193,11 @@ def apply_scenario_route():
 @app.route("/api/feeds/catalog", methods=["GET"])
 def get_feeds_catalog_route():
     try:
-        catalog = get_available_feeds_catalog(BASE_DIR)
+        std = request.args.get("standard")
+        if not std:
+            scenario = get_campo_dourado_scenario_info(BASE_DIR)
+            std = scenario.get("nutrient_standard", "NASEM")
+        catalog = get_available_feeds_catalog(BASE_DIR, nutrient_standard=std)
         return jsonify(catalog)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -200,6 +209,19 @@ def save_feeds_route():
         feeds = data.get("feeds", [])
         active_feed_rel = get_active_feed_rel_path(BASE_DIR)
         result = update_feeds_file(BASE_DIR, feeds, feed_rel_path=active_feed_rel)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/feeds/preset", methods=["POST"])
+def load_feeds_preset_route():
+    try:
+        data = request.json or {}
+        std = data.get("standard")
+        if not std:
+            scenario = get_campo_dourado_scenario_info(BASE_DIR)
+            std = scenario.get("nutrient_standard", "NASEM")
+        result = load_preset_feeds_for_standard(BASE_DIR, nutrient_standard=std)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

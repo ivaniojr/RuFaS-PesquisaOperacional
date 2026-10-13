@@ -359,10 +359,18 @@
       <div class="card mt-4">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h2>Gestão de Insumos da Dieta & Custos</h2>
-            <p class="subtitle">Adicione ou retire ingredientes da biblioteca NASEM e defina os preços de compra ($/kg de matéria seca) para a otimização.</p>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <h2>Gestão de Insumos da Dieta & Custos</h2>
+              <span id="badge-diet-standard" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #60a5fa; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 9999px;">
+                Padrão: NASEM (2021)
+              </span>
+            </div>
+            <p class="subtitle" id="subtitle-diet-desc">Adicione ou retire ingredientes da biblioteca ativa e defina os preços de compra ($/kg de matéria seca) para a otimização.</p>
           </div>
-          <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-outline" id="btn-load-preset-feeds" title="Carrega uma formulação típica recomendada para o padrão ativo">
+              ⚡ Carregar Dieta Sugerida
+            </button>
             <button class="btn btn-outline" id="btn-toggle-add-panel">
               ➕ Incluir Insumo
             </button>
@@ -376,11 +384,11 @@
           <!-- Painel Retrátil de Inclusão de Novo Insumo -->
           <div id="panel-add-feed" class="add-feed-panel" style="display: none; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px;">
             <h3 style="font-size: 15px; margin-bottom: 12px; color: #fff; display: flex; align-items: center; gap: 8px;">
-              <span>🌱</span> Incluir Ingrediente do Catálogo NASEM / RuFaS
+              <span>🌱</span> <span id="label-panel-catalog-title">Incluir Ingrediente do Catálogo NASEM / RuFaS</span>
             </h3>
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 14px; align-items: flex-end;">
               <div class="form-group" style="margin-bottom: 0;">
-                <label for="select-catalog-feed">Selecione o Alimento (Catálogo NASEM)</label>
+                <label for="select-catalog-feed" id="label-select-catalog-feed">Selecione o Alimento (Catálogo NASEM)</label>
                 <select id="select-catalog-feed" class="form-control" style="width: 100%;">
                   <option value="">Carregando catálogo...</option>
                 </select>

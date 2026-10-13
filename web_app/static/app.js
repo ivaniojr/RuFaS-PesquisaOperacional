@@ -8,6 +8,7 @@ let statusPollingInterval = null;
 let feedsData = [];
 let feedCatalog = [];
 let poCurrentDiet = [];
+let currentStandard = "NASEM";
 
 // Modern Toast Notification System
 function showToast(message, type = "info", duration = 3500) {
@@ -109,6 +110,13 @@ function setupEventListeners() {
 
   const btnSaveFeeds = document.getElementById("btn-save-feeds");
   if (btnSaveFeeds) btnSaveFeeds.addEventListener("click", saveFeedsConfig);
+
+  const btnLoadPreset = document.getElementById("btn-load-preset-feeds");
+  if (btnLoadPreset) {
+    btnLoadPreset.addEventListener("click", () => {
+      loadStandardPresetFeeds(currentStandard);
+    });
+  }
 
   const startSim = () => {
     switchTab("tab-run");
@@ -456,20 +464,59 @@ async function loadConfig() {
       }
     }
 
+    currentStandard = (data.scenario && data.scenario.nutrient_standard) ? data.scenario.nutrient_standard.toUpperCase() : "NASEM";
+
+    // Atualiza indicadores de padrão nutricional na interface
+    const badgeDietStd = document.getElementById("badge-diet-standard");
+    if (badgeDietStd) {
+      if (currentStandard === "NRC") {
+        badgeDietStd.textContent = "Padrão Ativo: NRC (2001)";
+        badgeDietStd.style.background = "rgba(245, 158, 11, 0.15)";
+        badgeDietStd.style.borderColor = "rgba(245, 158, 11, 0.35)";
+        badgeDietStd.style.color = "#fbbf24";
+      } else {
+        badgeDietStd.textContent = "Padrão Ativo: NASEM (2021)";
+        badgeDietStd.style.background = "rgba(59, 130, 246, 0.15)";
+        badgeDietStd.style.borderColor = "rgba(59, 130, 246, 0.35)";
+        badgeDietStd.style.color = "#60a5fa";
+      }
+    }
+
+    const panelCatalogTitle = document.getElementById("label-panel-catalog-title");
+    if (panelCatalogTitle) {
+      panelCatalogTitle.textContent = currentStandard === "NRC"
+        ? "Incluir Ingrediente do Catálogo NRC (2001) — 134 Alimentos"
+        : "Incluir Ingrediente do Catálogo NASEM (2021) — 177 Alimentos";
+    }
+
+    const labelSelectFeed = document.getElementById("label-select-catalog-feed");
+    if (labelSelectFeed) {
+      labelSelectFeed.textContent = `Selecione o Alimento (Catálogo ${currentStandard})`;
+    }
+
+    const btnPreset = document.getElementById("btn-load-preset-feeds");
+    if (btnPreset) {
+      btnPreset.textContent = `⚡ Dieta Sugerida (${currentStandard})`;
+    }
+
     feedsData = data.feeds || [];
     renderFeedsTable(feedsData);
+
+    // Carrega o catálogo do padrão ativo
+    await loadFeedCatalog(currentStandard);
   } catch (err) {
     console.error("Erro ao carregar configurações:", err);
   }
 }
 
-async function loadFeedCatalog() {
+async function loadFeedCatalog(std = null) {
   try {
-    const res = await fetch("/api/feeds/catalog");
+    const standard = (std || currentStandard || "NASEM").toUpperCase();
+    const res = await fetch(`/api/feeds/catalog?standard=${encodeURIComponent(standard)}`);
     feedCatalog = await res.json();
     const select = document.getElementById("select-catalog-feed");
     if (!select) return;
-    select.innerHTML = '<option value="">-- Selecione um alimento para incluir --</option>';
+    select.innerHTML = `<option value="">-- Selecione um alimento do catálogo ${standard} (${feedCatalog.length} itens) --</option>`;
     feedCatalog.forEach(item => {
       const opt = document.createElement("option");
       opt.value = item.id;
@@ -477,7 +524,7 @@ async function loadFeedCatalog() {
       select.appendChild(opt);
     });
   } catch (err) {
-    console.error("Erro ao carregar catálogo NASEM:", err);
+    console.error("Erro ao carregar catálogo de alimentos:", err);
   }
 }
 
@@ -488,11 +535,31 @@ function renderFeedsTable(feeds) {
 
   const countBadge = document.getElementById("feeds-count-badge");
   if (countBadge) {
-    countBadge.textContent = `${feeds.length} insumos ativos na formulação`;
+    countBadge.textContent = `${feeds.length} insumos ativos na formulação (${currentStandard})`;
   }
 
   if (feeds.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Nenhum insumo ativo. Utilize o botão "➕ Incluir Insumo" acima para adicionar.</td></tr>`;
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; padding: 36px 20px; background: rgba(15, 23, 42, 0.25); border-radius: var(--radius-md);">
+          <div style="max-width: 580px; margin: 0 auto; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+            <h4 style="color: #fff; font-size: 16px; margin-bottom: 6px;">Tabela de Insumos Limpa para o Padrão ${currentStandard}</h4>
+            <p style="color: var(--text-dim); font-size: 13px; line-height: 1.5; margin-bottom: 18px;">
+              O padrão nutricional foi alterado para <strong>${currentStandard}</strong>. Os insumos anteriores foram limpos para evitar incompatibilidade entre bibliotecas de dados nutricionais.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+              <button class="btn btn-primary" onclick="loadStandardPresetFeeds('${currentStandard}')">
+                ⚡ Carregar Dieta Sugerida para ${currentStandard}
+              </button>
+              <button class="btn btn-outline" onclick="const p = document.getElementById('panel-add-feed'); if (p && p.style.display==='none') document.getElementById('btn-toggle-add-panel').click();">
+                ➕ Adicionar Manualmente do Catálogo ${currentStandard}
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
     return;
   }
 
@@ -503,7 +570,7 @@ function renderFeedsTable(feeds) {
       <td><strong>#${f.id}</strong></td>
       <td>
         <div style="font-weight: 600;">${f.name}</div>
-        <small style="color: var(--text-muted); font-size: 11px;">${f.category || 'NASEM'}</small>
+        <small style="color: var(--text-muted); font-size: 11px;">${f.category || currentStandard}</small>
       </td>
       <td>
         <span class="badge ${badgeClass}">${f.type || 'Insumo'}</span>
@@ -531,6 +598,37 @@ function renderFeedsTable(feeds) {
     tbody.appendChild(tr);
   });
 }
+
+window.loadStandardPresetFeeds = async function(std) {
+  const targetStd = std || currentStandard || "NASEM";
+  const btn = document.getElementById("btn-load-preset-feeds");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Carregando...";
+  }
+
+  try {
+    const res = await fetch("/api/feeds/preset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ standard: targetStd })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || `Dieta sugerida para ${targetStd} carregada com sucesso!`, "success");
+      await loadConfig();
+    } else {
+      showToast("Erro ao carregar dieta sugerida: " + (data.error || "Desconhecido"), "error");
+    }
+  } catch (err) {
+    showToast("Erro de conexão ao carregar dieta: " + err, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `⚡ Dieta Sugerida (${currentStandard})`;
+    }
+  }
+};
 
 // Função global para exclusão direta e persistência imediata do insumo
 window.removeFeedDirect = async function(fId) {
