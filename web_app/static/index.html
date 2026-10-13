@@ -11,7 +11,7 @@
   <!-- Chart.js via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- CSS Modular -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <div class="app-container">
@@ -193,7 +193,7 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05);">
             <span style="font-size: 13px; color: var(--text-dim);" id="feeds-count-badge">Carregando insumos...</span>
             <small style="color: var(--text-muted); font-size: 12px;">
-              * Clique em "Salvar Alterações de Insumos" para persistir as inclusões, exclusões e preços no modelo.
+              * Ao clicar em <strong>🗑️ Retirar</strong> ou <strong>✅ Adicionar</strong>, a exclusão ou inclusão é gravada e aplicada imediatamente no modelo.
             </small>
           </div>
         </div>
@@ -535,7 +535,10 @@
     </main>
   </div>
 
+  <!-- Container de Notificações Toast -->
+  <div id="toast-container" class="toast-container"></div>
+
   <!-- Script Modular -->
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

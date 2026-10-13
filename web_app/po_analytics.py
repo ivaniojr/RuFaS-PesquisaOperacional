@@ -205,10 +205,11 @@ def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]]) -> Dict[
     with open(cfg_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
+    user_active_feeds = [f for f in updated_feeds if f["feed_type"] not in essential_calf_ids]
     return {
         "success": True,
-        "message": f"Configuração de insumos atualizada com sucesso! ({len(updated_feeds)} insumos ativos)",
-        "active_feeds_count": len(updated_feeds)
+        "message": f"Configuração de insumos atualizada com sucesso! ({len(user_active_feeds)} insumos ativos na formulação)",
+        "active_feeds_count": len(user_active_feeds)
     }
 
 

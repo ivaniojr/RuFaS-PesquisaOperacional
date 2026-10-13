@@ -9,6 +9,62 @@ let feedsData = [];
 let feedCatalog = [];
 let poCurrentDiet = [];
 
+// Modern Toast Notification System
+function showToast(message, type = "info", duration = 3500) {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    container.className = "toast-container";
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  
+  let icon = "ℹ️";
+  if (type === "success") icon = "✅";
+  else if (type === "error") icon = "❌";
+  else if (type === "warning") icon = "⚠️";
+
+  toast.innerHTML = `
+    <span style="font-size: 16px;">${icon}</span>
+    <span style="flex: 1; line-height: 1.4;">${message}</span>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateX(100%)";
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, duration);
+}
+
+// Extrai custos e buffers atuais dos inputs do formulário para sincronização
+function buildFeedsPayload(feedList) {
+  const inputsCost = document.querySelectorAll(".input-feed-cost");
+  const inputsBuffer = document.querySelectorAll(".input-feed-buffer");
+
+  const costMap = {};
+  inputsCost.forEach(i => {
+    costMap[parseInt(i.getAttribute("data-id"), 10)] = parseFloat(i.value) || 0.0;
+  });
+
+  const bufferMap = {};
+  inputsBuffer.forEach(i => {
+    bufferMap[parseInt(i.getAttribute("data-id"), 10)] = parseFloat(i.value) || 0.15;
+  });
+
+  return feedList.map(f => ({
+    id: f.id,
+    cost: costMap[f.id] !== undefined ? costMap[f.id] : f.cost,
+    buffer: bufferMap[f.id] !== undefined ? bufferMap[f.id] : (f.buffer || 0.15)
+  }));
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   loadConfig();
@@ -127,17 +183,17 @@ function setupEventListeners() {
 
   const btnConfirmAdd = document.getElementById("btn-confirm-add-feed");
   if (btnConfirmAdd) {
-    btnConfirmAdd.addEventListener("click", () => {
+    btnConfirmAdd.addEventListener("click", async () => {
       const select = document.getElementById("select-catalog-feed");
       const feedId = parseInt(select.value, 10);
       if (!feedId) {
-        alert("Por favor, selecione um ingrediente do catálogo para adicionar.");
+        showToast("Por favor, selecione um ingrediente do catálogo para adicionar.", "warning");
         return;
       }
 
       const exists = feedsData.some(f => f.id === feedId);
       if (exists) {
-        alert("Este insumo já está presente na lista de alimentos ativos!");
+        showToast("Este insumo já está presente na formulação ativa!", "warning");
         return;
       }
 
@@ -145,7 +201,7 @@ function setupEventListeners() {
       const cost = parseFloat(document.getElementById("input-new-feed-cost").value) || 0.10;
       const buffer = parseFloat(document.getElementById("input-new-feed-buffer").value) || 0.15;
 
-      feedsData.push({
+      const newFeed = {
         id: feedId,
         name: catItem ? catItem.name : `Alimento ID ${feedId}`,
         cost: cost,
@@ -155,11 +211,38 @@ function setupEventListeners() {
         cp: catItem ? catItem.cp : 0.0,
         ndf: catItem ? catItem.ndf : 0.0,
         tdn: catItem ? catItem.tdn : 0.0
-      });
+      };
 
-      renderFeedsTable(feedsData);
-      select.value = "";
-      alert(`Insumo #${feedId} (${catItem ? catItem.name : ''}) adicionado! Lembre-se de clicar em "Salvar Alterações de Insumos" para persistir no modelo.`);
+      btnConfirmAdd.disabled = true;
+      btnConfirmAdd.textContent = "⏳ Adicionando e salvando...";
+
+      const updatedFeeds = [...feedsData, newFeed];
+      try {
+        const payloadFeeds = buildFeedsPayload(updatedFeeds);
+        const res = await fetch("/api/feeds", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feeds: payloadFeeds })
+        });
+        const data = await res.json();
+        if (data.success) {
+          feedsData = updatedFeeds;
+          renderFeedsTable(feedsData);
+          select.value = "";
+          const panel = document.getElementById("panel-add-feed");
+          if (panel) panel.style.display = "none";
+          const btnToggle = document.getElementById("btn-toggle-add-panel");
+          if (btnToggle) btnToggle.textContent = "➕ Incluir Insumo";
+          showToast(`Insumo #${feedId} (${newFeed.name}) incluído e salvo com sucesso!`, "success");
+        } else {
+          showToast("Erro ao salvar insumo: " + (data.error || "Desconhecido"), "error");
+        }
+      } catch (err) {
+        showToast("Erro na requisição: " + err, "error");
+      } finally {
+        btnConfirmAdd.disabled = false;
+        btnConfirmAdd.textContent = "✅ Adicionar à Dieta";
+      }
     });
   }
 }
@@ -259,31 +342,59 @@ function renderFeedsTable(feeds) {
         <input type="number" step="0.01" min="0" max="1" value="${f.buffer !== undefined ? f.buffer : 0.15}" class="form-control input-feed-buffer" data-id="${f.id}" style="width: 75px;">
       </td>
       <td style="text-align: center;">
-        <button class="btn btn-danger btn-sm btn-remove-feed" data-id="${f.id}" title="Retirar insumo da simulação">
+        <button class="btn btn-danger btn-sm btn-remove-feed" data-id="${f.id}" onclick="removeFeedDirect(${f.id})" title="Retirar insumo da simulação">
           🗑️ Retirar
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
-
-  // Event listeners para botões de remoção
-  tbody.querySelectorAll(".btn-remove-feed").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const fId = parseInt(btn.getAttribute("data-id"), 10);
-      if (feedsData.length <= 2) {
-        alert("Aviso: Mantenha pelo menos 2 insumos na formulação para garantir a viabilidade zootécnica do modelo.");
-        return;
-      }
-      const itemToRemove = feedsData.find(x => x.id === fId);
-      const feedName = itemToRemove ? itemToRemove.name : `ID ${fId}`;
-      if (confirm(`Deseja retirar o insumo #${fId} (${feedName}) da simulação?`)) {
-        feedsData = feedsData.filter(x => x.id !== fId);
-        renderFeedsTable(feedsData);
-      }
-    });
-  });
 }
+
+// Função global para exclusão direta e persistência imediata do insumo
+window.removeFeedDirect = async function(fId) {
+  if (feedsData.length <= 2) {
+    showToast("Mantenha pelo menos 2 insumos na formulação para viabilidade zootécnica.", "warning");
+    return;
+  }
+  const itemToRemove = feedsData.find(x => x.id === fId);
+  const feedName = itemToRemove ? itemToRemove.name : `ID #${fId}`;
+
+  // Desabilita botão e exibe feedback imediato
+  const btn = document.querySelector(`.btn-remove-feed[data-id="${fId}"]`);
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Excluindo...";
+  }
+
+  const updatedFeeds = feedsData.filter(x => x.id !== fId);
+  try {
+    const payloadFeeds = buildFeedsPayload(updatedFeeds);
+    const res = await fetch("/api/feeds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feeds: payloadFeeds })
+    });
+    const data = await res.json();
+    if (data.success) {
+      feedsData = updatedFeeds;
+      renderFeedsTable(feedsData);
+      showToast(`Insumo #${fId} (${feedName}) excluído com sucesso do modelo!`, "success");
+    } else {
+      showToast(`Erro ao excluir insumo: ${data.error || "Desconhecido"}`, "error");
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = "🗑️ Retirar";
+      }
+    }
+  } catch (err) {
+    showToast(`Erro de conexão ao excluir: ${err}`, "error");
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = "🗑️ Retirar";
+    }
+  }
+};
 
 // 2. Save Configurations
 async function saveGeneralConfig() {
@@ -294,7 +405,8 @@ async function saveGeneralConfig() {
     start_day: parseInt(document.getElementById("input-start-day").value, 10),
     end_year: parseInt(document.getElementById("input-end-year").value, 10),
     end_day: parseInt(document.getElementById("input-end-day").value, 10),
-    optimization_mode: optModeEl ? optModeEl.value : "nonlinear"
+    optimization_mode: optModeEl ? optModeEl.value : "nonlinear",
+    feeds: buildFeedsPayload(feedsData)
   };
 
   try {
@@ -305,40 +417,22 @@ async function saveGeneralConfig() {
     });
     const data = await res.json();
     if (data.success) {
-      alert("Configurações gerais salvas com sucesso!");
+      showToast("Configurações gerais e insumos salvos com sucesso!", "success");
     } else {
-      alert("Erro ao salvar: " + (data.error || "Desconhecido"));
+      showToast("Erro ao salvar: " + (data.error || "Desconhecido"), "error");
     }
   } catch (err) {
-    alert("Erro na requisição: " + err);
+    showToast("Erro na requisição: " + err, "error");
   }
 }
 
 async function saveFeedsConfig() {
   if (feedsData.length === 0) {
-    alert("Não é possível salvar sem nenhum insumo ativo.");
+    showToast("Não é possível salvar sem nenhum insumo ativo.", "warning");
     return;
   }
 
-  // Coleta os valores atualizados de custo e buffer dos inputs da tabela
-  const inputsCost = document.querySelectorAll(".input-feed-cost");
-  const inputsBuffer = document.querySelectorAll(".input-feed-buffer");
-
-  const costMap = {};
-  inputsCost.forEach(i => {
-    costMap[parseInt(i.getAttribute("data-id"), 10)] = parseFloat(i.value) || 0.0;
-  });
-
-  const bufferMap = {};
-  inputsBuffer.forEach(i => {
-    bufferMap[parseInt(i.getAttribute("data-id"), 10)] = parseFloat(i.value) || 0.15;
-  });
-
-  const payloadFeeds = feedsData.map(f => ({
-    id: f.id,
-    cost: costMap[f.id] !== undefined ? costMap[f.id] : f.cost,
-    buffer: bufferMap[f.id] !== undefined ? bufferMap[f.id] : (f.buffer || 0.15)
-  }));
+  const payloadFeeds = buildFeedsPayload(feedsData);
 
   try {
     const res = await fetch("/api/feeds", {
@@ -348,13 +442,13 @@ async function saveFeedsConfig() {
     });
     const data = await res.json();
     if (data.success) {
-      alert(data.message || "Insumos atualizados e salvos com sucesso no modelo RuFaS!");
+      showToast(data.message || "Insumos e parâmetros salvos com sucesso no modelo RuFaS!", "success");
       await loadConfig();
     } else {
-      alert("Erro ao salvar insumos: " + (data.error || "Desconhecido"));
+      showToast("Erro ao salvar insumos: " + (data.error || "Desconhecido"), "error");
     }
   } catch (err) {
-    alert("Erro na requisição: " + err);
+    showToast("Erro na requisição: " + err, "error");
   }
 }
 
@@ -364,15 +458,16 @@ async function startSimulation() {
     const res = await fetch("/api/run", { method: "POST" });
     const data = await res.json();
     if (data.error) {
-      alert(data.error);
+      showToast(data.error, "error");
       return;
     }
+    showToast("Simulação iniciada com sucesso!", "info");
     document.getElementById("console-output").textContent = "";
     document.getElementById("progress-bar").style.width = "0%";
     document.getElementById("progress-percent").textContent = "0%";
     pollStatus();
   } catch (err) {
-    alert("Erro ao iniciar simulação: " + err);
+    showToast("Erro ao iniciar simulação: " + err, "error");
   }
 }
 
@@ -696,7 +791,7 @@ async function loadSensitivity(feedId, milkPrice) {
   try {
     const res = await fetch(`/api/po/sensitivity?feed_id=${feedId}&milk_price=${milkPrice}`);
     const data = await res.json();
-    if (data.error) return alert(data.error);
+    if (data.error) return showToast(data.error, "error");
 
     if (document.getElementById("po-selected-feed-name")) {
       document.getElementById("po-selected-feed-name").textContent = data.feed_name;

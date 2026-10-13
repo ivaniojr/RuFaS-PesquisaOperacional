@@ -62,6 +62,13 @@ sim_lock = threading.Lock()
 def get_feed_names():
     return get_all_feed_names(BASE_DIR)
 
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 @app.route("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
@@ -114,11 +121,14 @@ def get_config():
         catalog_map = {item["id"]: item for item in get_available_feeds_catalog(BASE_DIR)}
         feed_config_path = BASE_DIR / "input" / "data" / "feed" / "example_Midwest_feed.json"
         feeds_list = []
+        calf_feed_ids = {202, 216}  # Alimentos exclusivos de bezerros em aleitamento líquido
         if feed_config_path.exists():
             with open(feed_config_path, "r", encoding="utf-8") as f:
                 f_data = json.load(f)
                 for item in f_data.get("feeds", []):
                     f_id = item.get("feed_type")
+                    if f_id in calf_feed_ids:
+                        continue  # Mantidos em segundo plano para o modelo de bezerros
                     cat_info = catalog_map.get(f_id, {})
                     feeds_list.append({
                         "id": f_id,
