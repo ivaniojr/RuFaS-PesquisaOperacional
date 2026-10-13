@@ -138,11 +138,19 @@ function setupEventListeners() {
   }
 
   // PO & Sensibilidade Listeners
+  const feedSelect = document.getElementById("select-po-feed");
+  if (feedSelect) {
+    feedSelect.addEventListener("change", () => {
+      const feedId = parseInt(feedSelect.value, 10);
+      const milkPrice = parseFloat(document.getElementById("input-po-milk-price").value) || 0.45;
+      if (feedId) loadSensitivity(feedId, milkPrice);
+    });
+  }
+
   const btnCalcSens = document.getElementById("btn-calc-sensitivity");
   if (btnCalcSens) {
     btnCalcSens.addEventListener("click", () => {
-      const feedSelect = document.getElementById("select-po-feed");
-      const feedId = parseInt(feedSelect.value, 10);
+      const feedId = parseInt(document.getElementById("select-po-feed")?.value, 10);
       const milkPrice = parseFloat(document.getElementById("input-po-milk-price").value) || 0.45;
       if (feedId) loadSensitivity(feedId, milkPrice);
     });
@@ -515,14 +523,18 @@ async function loadFeedCatalog(std = null) {
     const res = await fetch(`/api/feeds/catalog?standard=${encodeURIComponent(standard)}`);
     feedCatalog = await res.json();
     const select = document.getElementById("select-catalog-feed");
-    if (!select) return;
-    select.innerHTML = `<option value="">-- Selecione um alimento do catálogo ${standard} (${feedCatalog.length} itens) --</option>`;
-    feedCatalog.forEach(item => {
-      const opt = document.createElement("option");
-      opt.value = item.id;
-      opt.textContent = item.label;
-      select.appendChild(opt);
-    });
+    if (select) {
+      select.innerHTML = `<option value="">-- Selecione um alimento do catálogo ${standard} (${feedCatalog.length} itens) --</option>`;
+      feedCatalog.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.label;
+        select.appendChild(opt);
+      });
+    }
+
+    // Sincroniza a combo "Ingrediente da Dieta para Análise" com os itens do catálogo
+    populatePOFeedSelect();
   } catch (err) {
     console.error("Erro ao carregar catálogo de alimentos:", err);
   }
@@ -1008,14 +1020,14 @@ async function loadPOAnalytics() {
     // Popula tabela da dieta com custos
     renderPODietTable(poCurrentDiet);
 
-    // Popula select de insumos para sensibilidade
-    populatePOFeedSelect(poCurrentDiet);
+    // Popula select de insumos para sensibilidade com os itens do catálogo
+    populatePOFeedSelect();
 
-    // Se houver insumo, calcula sensibilidade inicial para o primeiro
-    if (poCurrentDiet.length > 0) {
-      const select = document.getElementById("select-po-feed");
-      const currentSelected = select ? parseInt(select.value, 10) : null;
-      const targetId = currentSelected || poCurrentDiet[0].feed_id;
+    // Se houver insumo, calcula sensibilidade inicial para o primeiro selecionado
+    const select = document.getElementById("select-po-feed");
+    const currentSelected = select ? parseInt(select.value, 10) : null;
+    const targetId = currentSelected || (poCurrentDiet.length > 0 ? poCurrentDiet[0].feed_id : (feedCatalog.length > 0 ? feedCatalog[0].id : null));
+    if (targetId) {
       loadSensitivity(targetId, milkPrice);
     }
 
@@ -1049,21 +1061,71 @@ function renderPODietTable(diet) {
   });
 }
 
-function populatePOFeedSelect(diet) {
+function populatePOFeedSelect() {
   const select = document.getElementById("select-po-feed");
   if (!select) return;
   const currentVal = select.value;
   select.innerHTML = "";
 
-  diet.forEach(item => {
-    const opt = document.createElement("option");
-    opt.value = item.feed_id;
-    opt.textContent = `${item.name} ($${item.price_per_kg}/kg - ${item.percentage}%)`;
-    if (currentVal && String(item.feed_id) === String(currentVal)) {
-      opt.selected = true;
-    }
-    select.appendChild(opt);
+  if (!feedCatalog || feedCatalog.length === 0) {
+    select.innerHTML = '<option value="">Carregando catálogo de insumos...</option>';
+    return;
+  }
+
+  // Mapeia insumos presentes na formulação simulada
+  const dietMap = {};
+  (poCurrentDiet || []).forEach(item => {
+    dietMap[item.feed_id] = item;
   });
+
+  const activeInDiet = feedCatalog.filter(item => dietMap[item.id]);
+  const othersInCatalog = feedCatalog.filter(item => !dietMap[item.id]);
+
+  if (activeInDiet.length > 0) {
+    // 1. Grupo de insumos ativos na dieta simulada
+    const groupActive = document.createElement("optgroup");
+    groupActive.label = `⭐ Ativos na Dieta Formulada (${activeInDiet.length})`;
+    activeInDiet.forEach(item => {
+      const d = dietMap[item.id];
+      const opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = `⭐ #${item.id} - ${item.name} (${d.amount_kg} kg | ${d.percentage}% | $${d.price_per_kg}/kg)`;
+      if (currentVal && String(item.id) === String(currentVal)) {
+        opt.selected = true;
+      }
+      groupActive.appendChild(opt);
+    });
+    select.appendChild(groupActive);
+
+    // 2. Grupo com todos os demais alimentos do catálogo
+    const groupOthers = document.createElement("optgroup");
+    groupOthers.label = `📋 Todos os Alimentos do Catálogo ${currentStandard} (${othersInCatalog.length} itens)`;
+    othersInCatalog.forEach(item => {
+      const opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = item.label;
+      if (currentVal && String(item.id) === String(currentVal)) {
+        opt.selected = true;
+      }
+      groupOthers.appendChild(opt);
+    });
+    select.appendChild(groupOthers);
+  } else {
+    // Sem dieta simulada ainda: carrega todos os itens do catálogo diretamente
+    feedCatalog.forEach(item => {
+      const opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = item.label;
+      if (currentVal && String(item.id) === String(currentVal)) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  }
+
+  if (!select.value && select.options.length > 0) {
+    select.selectedIndex = 0;
+  }
 }
 
 async function loadSensitivity(feedId, milkPrice) {
@@ -1073,10 +1135,14 @@ async function loadSensitivity(feedId, milkPrice) {
     if (data.error) return showToast(data.error, "error");
 
     if (document.getElementById("po-selected-feed-name")) {
-      document.getElementById("po-selected-feed-name").textContent = data.feed_name;
+      document.getElementById("po-selected-feed-name").textContent = data.feed_name + (data.is_active_in_diet ? " (Ativo na Dieta)" : " (Insumo do Catálogo)");
     }
     if (document.getElementById("po-feed-elasticity")) {
-      document.getElementById("po-feed-elasticity").textContent = `${data.cost_elasticity} (${data.cost_share_percentage}% do custo total)`;
+      if (data.is_active_in_diet) {
+        document.getElementById("po-feed-elasticity").textContent = `${data.cost_elasticity} (${data.cost_share_percentage}% do custo total | ${data.amount_kg} kg/vaca/dia)`;
+      } else {
+        document.getElementById("po-feed-elasticity").textContent = `0.0 (Insumo do catálogo com consumo 0.0 kg na dieta ótima simulada atual)`;
+      }
     }
 
     renderSensitivityChart(data.sensitivity_curve);

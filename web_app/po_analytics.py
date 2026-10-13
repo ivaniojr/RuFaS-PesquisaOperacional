@@ -691,15 +691,30 @@ def run_sensitivity_analysis(
         return {"error": "Nenhum resultado de simulação disponível para análise de sensibilidade."}
 
     diet = po_data["diet"]
-    target_ingredient = next((item for item in diet if item["feed_id"] == feed_id), None)
-    if not target_ingredient:
-        return {"error": f"Ingrediente ID {feed_id} não encontrado na dieta formulada."}
+    feed_names = get_all_feed_names(base_dir)
+    feed_prices = get_feed_prices(base_dir)
 
-    base_price = target_ingredient["price_per_kg"]
-    target_amount = target_ingredient["amount_kg"]
+    target_ingredient = next((item for item in diet if item["feed_id"] == feed_id), None)
     base_cost_day = po_data["kpis"]["cost_per_cow_day"]
     milk_per_cow = po_data["kpis"]["milk_per_cow_daily"]
-    other_feeds_cost = base_cost_day - (target_amount * base_price)
+
+    if target_ingredient:
+        base_price = target_ingredient["price_per_kg"]
+        target_amount = target_ingredient["amount_kg"]
+        feed_name = target_ingredient["name"]
+        pct_in_diet = target_ingredient["percentage"]
+        other_feeds_cost = base_cost_day - (target_amount * base_price)
+        cost_share = (target_amount * base_price / base_cost_day) if base_cost_day > 0 else 0.0
+        is_active = True
+    else:
+        # Ingrediente do catálogo que não está presente na dieta ótima simulada
+        feed_name = feed_names.get(feed_id, f"Alimento #{feed_id}")
+        base_price = feed_prices.get(feed_id, 0.10)
+        target_amount = 0.0
+        pct_in_diet = 0.0
+        other_feeds_cost = base_cost_day
+        cost_share = 0.0
+        is_active = False
 
     sensitivity_curve = []
     for delta_pct in price_deltas:
@@ -718,18 +733,15 @@ def run_sensitivity_analysis(
             "iofc_per_cow_day": round(new_iofc, 3),
         })
 
-    # Elasticidade de Custo da Dieta em relação ao Preço do Insumo
-    # E = (dCusto / Custo) / (dPreco / Preco) = (amount * price) / TotalCost = proporção do custo
-    cost_share = (target_amount * base_price / base_cost_day) if base_cost_day > 0 else 0.0
-
     return {
         "feed_id": feed_id,
-        "feed_name": target_ingredient["name"],
-        "base_price": base_price,
-        "amount_kg": target_amount,
-        "percentage_in_diet": target_ingredient["percentage"],
+        "feed_name": feed_name,
+        "base_price": round(base_price, 4),
+        "amount_kg": round(target_amount, 3),
+        "percentage_in_diet": pct_in_diet,
         "cost_share_percentage": round(cost_share * 100, 2),
         "cost_elasticity": round(cost_share, 4),
+        "is_active_in_diet": is_active,
         "sensitivity_curve": sensitivity_curve,
     }
 
