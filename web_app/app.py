@@ -1,0 +1,346 @@
+import os
+import sys
+import glob
+import json
+import re
+import csv
+import threading
+import subprocess
+from pathlib import Path
+from flask import Flask, jsonify, request, send_from_directory
+
+app = Flask(__name__, static_folder="static", static_url_path="")
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+VENV_PYTHON = Path(r"C:\Users\ivani\OneDrive\IFG_Goias\PesquisaOperacional\Projeto_Final\venv\Scripts\python.exe")
+if not VENV_PYTHON.exists():
+    VENV_PYTHON = Path(sys.executable)
+
+# Global execution state
+sim_state = {
+    "running": False,
+    "progress": 0,
+    "current_day": 0,
+    "total_days": 31,
+    "status_text": "Pronto",
+    "logs": [],
+    "exit_code": None,
+    "error": None
+}
+
+sim_lock = threading.Lock()
+
+def get_feed_names():
+    feed_names = {}
+    csv_path = BASE_DIR / "input" / "data" / "feed" / "user_feeds.csv"
+    if csv_path.exists():
+        with open(csv_path, mode="r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    f_id = int(row["rufas_id"])
+                    name = f"{row.get('Name', '')} ({row.get('feed_description', '')})".strip()
+                    feed_names[f_id] = name
+                except (ValueError, KeyError):
+                    continue
+    return feed_names
+
+@app.route("/")
+def index():
+    return send_from_directory(app.static_folder, "index.html")
+
+@app.route("/api/config", methods=["GET"])
+def get_config():
+    try:
+        # Task Manager Metadata
+        tm_path = BASE_DIR / "input" / "task_manager_metadata.json"
+        current_task_path = "input/data/tasks/example_animals_only_task.json"
+        if tm_path.exists():
+            with open(tm_path, "r", encoding="utf-8") as f:
+                tm_data = json.load(f)
+                current_task_path = tm_data.get("files", {}).get("tasks", {}).get("path", current_task_path)
+
+        # Available tasks
+        tasks_dir = BASE_DIR / "input" / "data" / "tasks"
+        available_tasks = []
+        if tasks_dir.exists():
+            for t_file in tasks_dir.glob("*.json"):
+                available_tasks.append({
+                    "filename": t_file.name,
+                    "rel_path": f"input/data/tasks/{t_file.name}"
+                })
+
+        # Config parameters based on current task
+        # Check if animals_only or freestall
+        if "animals_only" in current_task_path:
+            config_path = BASE_DIR / "input" / "data" / "config" / "example_animals_only_config.json"
+        else:
+            config_path = BASE_DIR / "input" / "data" / "config" / "example_freestall_config.json"
+
+        start_year, start_day = 2013, 1
+        end_year, end_day = 2013, 31
+        sim_type = "animals_only"
+
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                c_data = json.load(f)
+                s_parts = c_data.get("start_date", "2013:1").split(":")
+                e_parts = c_data.get("end_date", "2013:31").split(":")
+                start_year, start_day = int(s_parts[0]), int(s_parts[1])
+                end_year, end_day = int(e_parts[0]), int(e_parts[1])
+                sim_type = c_data.get("simulation_type", "animals_only")
+
+        # Feeds and costs
+        feed_names = get_feed_names()
+        feed_config_path = BASE_DIR / "input" / "data" / "feed" / "example_Midwest_feed.json"
+        feeds_list = []
+        if feed_config_path.exists():
+            with open(feed_config_path, "r", encoding="utf-8") as f:
+                f_data = json.load(f)
+                for item in f_data.get("feeds", []):
+                    f_id = item.get("feed_type")
+                    feeds_list.append({
+                        "id": f_id,
+                        "name": feed_names.get(f_id, f"Alimento ID {f_id}"),
+                        "cost": item.get("purchased_feed_cost", 0.0),
+                        "buffer": item.get("buffer", 0.15)
+                    })
+
+        return jsonify({
+            "current_task": current_task_path,
+            "available_tasks": available_tasks,
+            "simulation_type": sim_type,
+            "start_year": start_year,
+            "start_day": start_day,
+            "end_year": end_year,
+            "end_day": end_day,
+            "total_days": (end_day - start_day + 1) if start_year == end_year else 365,
+            "feeds": feeds_list
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/config", methods=["POST"])
+def save_config():
+    try:
+        data = request.json or {}
+        task_path = data.get("current_task")
+        start_year = int(data.get("start_year", 2013))
+        start_day = int(data.get("start_day", 1))
+        end_year = int(data.get("end_year", 2013))
+        end_day = int(data.get("end_day", 31))
+        feeds = data.get("feeds", [])
+
+        # 1. Update task_manager_metadata.json
+        tm_path = BASE_DIR / "input" / "task_manager_metadata.json"
+        if tm_path.exists() and task_path:
+            with open(tm_path, "r+", encoding="utf-8") as f:
+                tm_data = json.load(f)
+                tm_data.setdefault("files", {}).setdefault("tasks", {})["path"] = task_path
+                f.seek(0)
+                json.dump(tm_data, f, indent=2)
+                f.truncate()
+
+        # 2. Update config file (both animals_only and freestall for safety)
+        configs_to_update = [
+            BASE_DIR / "input" / "data" / "config" / "example_animals_only_config.json",
+            BASE_DIR / "input" / "data" / "config" / "example_freestall_config.json"
+        ]
+        for cfg_file in configs_to_update:
+            if cfg_file.exists():
+                with open(cfg_file, "r+", encoding="utf-8") as f:
+                    c_data = json.load(f)
+                    c_data["start_date"] = f"{start_year}:{start_day}"
+                    c_data["end_date"] = f"{end_year}:{end_day}"
+                    f.seek(0)
+                    json.dump(c_data, f, indent=4)
+                    f.truncate()
+
+        # 3. Update feeds costs
+        feed_config_path = BASE_DIR / "input" / "data" / "feed" / "example_Midwest_feed.json"
+        if feed_config_path.exists() and feeds:
+            with open(feed_config_path, "r+", encoding="utf-8") as f:
+                f_data = json.load(f)
+                feed_map = {f["id"]: float(f["cost"]) for f in feeds if "id" in f and "cost" in f}
+                for item in f_data.get("feeds", []):
+                    f_id = item.get("feed_type")
+                    if f_id in feed_map:
+                        item["purchased_feed_cost"] = feed_map[f_id]
+                f.seek(0)
+                json.dump(f_data, f, indent=2)
+                f.truncate()
+
+        return jsonify({"success": True, "message": "Configurações salvas com sucesso!"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def run_simulation_worker():
+    global sim_state
+    try:
+        cmd = [str(VENV_PYTHON), "-u", "main.py"]
+        process = subprocess.Popen(
+            cmd,
+            cwd=str(BASE_DIR),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+
+        with sim_lock:
+            sim_state["status_text"] = "Simulando..."
+
+        day_pattern = re.compile(r"Day:\s*(\d+)\s*/\s*(\d+)")
+
+        for line in iter(process.stdout.readline, ""):
+            line_str = line.strip()
+            if not line_str:
+                continue
+            with sim_lock:
+                sim_state["logs"].append(line_str)
+                if len(sim_state["logs"]) > 200:
+                    sim_state["logs"].pop(0)
+
+                match = day_pattern.search(line_str)
+                if match:
+                    cur = int(match.group(1))
+                    tot = int(match.group(2))
+                    sim_state["current_day"] = cur
+                    sim_state["total_days"] = tot
+                    sim_state["progress"] = int((cur / tot) * 100)
+                    sim_state["status_text"] = f"Simulando dia {cur} de {tot} ({sim_state['progress']}%)"
+
+        process.wait()
+        with sim_lock:
+            sim_state["exit_code"] = process.returncode
+            sim_state["running"] = False
+            if process.returncode == 0:
+                sim_state["progress"] = 100
+                sim_state["status_text"] = "Simulação concluída com sucesso!"
+            else:
+                sim_state["status_text"] = f"Erro na simulação (Código {process.returncode})"
+    except Exception as e:
+        with sim_lock:
+            sim_state["running"] = False
+            sim_state["error"] = str(e)
+            sim_state["status_text"] = f"Erro: {e}"
+
+@app.route("/api/run", methods=["POST"])
+def run_simulation():
+    global sim_state
+    with sim_lock:
+        if sim_state["running"]:
+            return jsonify({"error": "Já existe uma simulação em andamento."}), 400
+
+        sim_state["running"] = True
+        sim_state["progress"] = 0
+        sim_state["current_day"] = 0
+        sim_state["logs"] = []
+        sim_state["exit_code"] = None
+        sim_state["error"] = None
+        sim_state["status_text"] = "Iniciando motor de simulação..."
+
+    t = threading.Thread(target=run_simulation_worker, daemon=True)
+    t.start()
+    return jsonify({"success": True, "message": "Simulação iniciada em segundo plano."})
+
+@app.route("/api/status", methods=["GET"])
+def get_status():
+    with sim_lock:
+        return jsonify(dict(sim_state))
+
+@app.route("/api/results", methods=["GET"])
+def get_results():
+    try:
+        csv_files = glob.glob(str(BASE_DIR / "output" / "CSVs" / "*.csv"))
+        if not csv_files:
+            return jsonify({"has_results": False, "message": "Nenhum arquivo de resultado encontrado em output/CSVs."})
+
+        # Most recent CSV
+        latest_csv = max(csv_files, key=os.path.getmtime)
+        feed_names = get_feed_names()
+
+        # Let's read relevant columns using pandas
+        import pandas as pd
+        df = pd.read_csv(latest_csv)
+
+        # 1. Optimal diet for LAC_COW_PEN_3
+        diet_cols = [c for c in df.columns if "report_ration_per_animal.ration_per_animal_for_LAC_COW" in c]
+        cow_diet = []
+        total_dmi = 0.0
+
+        for c in diet_cols:
+            parts = c.split(".")
+            feed_id_str = parts[-1].replace(" (kg)", "")
+            try:
+                feed_id = int(feed_id_str)
+                amount = float(df[c].dropna().mean())
+                if amount > 0.001:
+                    cow_diet.append({
+                        "feed_id": feed_id,
+                        "name": feed_names.get(feed_id, f"Alimento #{feed_id}"),
+                        "amount_kg": round(amount, 3)
+                    })
+                    total_dmi += amount
+            except ValueError:
+                continue
+
+        # Sort descending by amount
+        cow_diet.sort(key=lambda x: x["amount_kg"], reverse=True)
+        for item in cow_diet:
+            item["percentage"] = round((item["amount_kg"] / total_dmi * 100), 1) if total_dmi > 0 else 0
+
+        # 2. Milk production series
+        milk_col = next((c for c in df.columns if "report_herd_statistics_data.daily_milk_production" in c), None)
+        milk_series = []
+        if milk_col:
+            m_vals = df[milk_col].dropna().tolist()
+            milk_series = [{"day": i + 1, "milk_kg": round(val, 2)} for i, val in enumerate(m_vals)]
+
+        # 3. DMI across pens
+        pens_dmi = {}
+        pens_map = {
+            "CALF": "Bezerros (Calf)",
+            "GROWING": "Novilhas (Growing)",
+            "CLOSE_UP": "Pré-Parto (Close-Up)",
+            "LAC_COW": "Vacas em Lactação"
+        }
+        for p_key, p_label in pens_map.items():
+            col = next((c for c in df.columns if f"report_ration_per_animal.ration_per_animal_for_{p_key}" in c and "dry_matter_intake_total" in c), None)
+            if col:
+                vals = df[col].dropna().tolist()
+                pens_dmi[p_label] = [{"day": i + 1, "dmi": round(v, 2)} for i, v in enumerate(vals)]
+
+        # 4. Failed/Binding constraints in RationOptimizer
+        fail_cols = [c for c in df.columns if "constraints_failed_dict" in c]
+        binding_constraints = {}
+        for c in fail_cols:
+            s = df[c].dropna()
+            for v in s:
+                v_str = str(v)
+                binding_constraints[v_str] = binding_constraints.get(v_str, 0) + 1
+
+        # KPIs
+        avg_milk = round(df[milk_col].dropna().mean(), 2) if milk_col else 0.0
+        avg_dmi = round(total_dmi, 2)
+        total_days = len(milk_series)
+
+        return jsonify({
+            "has_results": True,
+            "filename": Path(latest_csv).name,
+            "kpis": {
+                "avg_milk_daily": avg_milk,
+                "avg_cow_dmi": avg_dmi,
+                "total_days_simulated": total_days,
+                "active_ingredients_count": len(cow_diet)
+            },
+            "diet": cow_diet,
+            "milk_series": milk_series,
+            "pens_dmi": pens_dmi,
+            "binding_constraints": binding_constraints
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=False)
