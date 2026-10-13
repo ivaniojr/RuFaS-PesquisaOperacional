@@ -35,6 +35,12 @@
       "type": "bool",
       "description": "Whether or not to add detailed_values property to the json output",
       "default": false
+    },
+    "optimization_mode": {
+      "type": "string",
+      "description": "The optimization mode to use for ration formulation: nonlinear (NLP/SLSQP) or linear (LP/HiGHS).",
+      "pattern": "^(nonlinear|linear)$",
+      "default": "nonlinear"
     }
   },
   "animal_properties": {

@@ -194,16 +194,44 @@ body {
 }
 
 /* Grids & Cards */
-.grid-2-col {
+.grid-2col, .grid-2-col {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: 1fr 1fr;
   gap: 24px;
 }
 
 @media (max-width: 1024px) {
-  .grid-2-col {
+  .grid-2col, .grid-2-col {
     grid-template-columns: 1fr;
   }
+}
+
+.col-half {
+  flex: 1;
+}
+
+.input-group-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.separator {
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.card-footer-action {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.form-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
 }
 
 .card {
@@ -556,3 +584,117 @@ select.form-control {
 
 .mt-3 { margin-top: 16px; }
 .mt-4 { margin-top: 24px; }
+
+/* Pesquisa Operacional & Sensitivity Tab Styles */
+.po-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  background: var(--bg-subtle);
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+.po-toolbar .form-group {
+  margin-bottom: 0;
+  min-width: 220px;
+  flex: 1;
+}
+
+.po-actions {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.btn-secondary {
+  background: var(--secondary);
+  color: white;
+}
+.btn-secondary:hover {
+  background: var(--secondary-hover);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--secondary);
+  color: #60a5fa;
+}
+.btn-outline:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: #fff;
+}
+
+.badge-binding {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-slack {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.theory-box {
+  background: rgba(30, 41, 59, 0.6);
+  border-left: 4px solid var(--accent-cyan);
+  padding: 16px 20px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.theory-box strong {
+  color: #f8fafc;
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.nutrient-pill {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  margin-right: 4px;
+  font-family: monospace;
+}
+
+.add-feed-panel {
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

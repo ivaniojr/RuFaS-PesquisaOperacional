@@ -3,1244 +3,539 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RuFaS - Painel de Simulação & Otimização</title>
+  <title>RuFaS - Simulação & Pesquisa Operacional</title>
   <!-- Google Fonts: Inter & Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
   <!-- Chart.js via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-:root {
-  --bg-main: #0b0f19;
-  --bg-card: #131b2e;
-  --bg-card-hover: #17223b;
-  --bg-subtle: #1e293b;
-  --border-color: #27354f;
-  --border-focus: #3b82f6;
-
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-
-  --primary: #10b981;
-  --primary-hover: #059669;
-  --primary-glow: rgba(16, 185, 129, 0.25);
-
-  --secondary: #3b82f6;
-  --secondary-hover: #2563eb;
-
-  --accent-cyan: #06b6d4;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --transition: all 0.2s ease;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: var(--bg-main);
-  color: var(--text-main);
-  line-height: 1.5;
-  min-height: 100vh;
-}
-
-.app-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px 32px;
-}
-
-/* Header */
-.app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.brand-logo {
-  font-size: 32px;
-  background: var(--bg-card);
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-}
-
-.brand-text h1 {
-  font-family: 'Outfit', sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: #fff;
-}
-
-.badge {
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-weight: 500;
-}
-
-.badge-subtle {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-/* Status Indicator */
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 14px;
-  border-radius: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--text-muted);
-}
-
-.status-indicator.idle .status-dot {
-  background-color: var(--primary);
-  box-shadow: 0 0 8px var(--primary);
-}
-
-.status-indicator.running .status-dot {
-  background-color: var(--accent-amber);
-  box-shadow: 0 0 8px var(--accent-amber);
-  animation: pulse 1.5s infinite;
-}
-
-.status-indicator.error .status-dot {
-  background-color: var(--accent-rose);
-  box-shadow: 0 0 8px var(--accent-rose);
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.9); opacity: 0.7; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.7; }
-}
-
-/* Tabs */
-.nav-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-  background: rgba(19, 27, 46, 0.6);
-  padding: 6px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  width: fit-content;
-}
-
-.tab-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 8px 18px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: var(--transition);
-}
-
-.tab-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.tab-btn.active {
-  background: var(--secondary);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
-}
-
-/* Tab Contents */
-.tab-content {
-  display: none;
-  animation: fadeIn 0.25s ease;
-}
-
-.tab-content.active {
-  display: block;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Grids & Cards */
-.grid-2-col {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 24px;
-}
-
-@media (max-width: 1024px) {
-  .grid-2-col {
-    grid-template-columns: 1fr;
-  }
-}
-
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(10px);
-}
-
-.card-header {
-  margin-bottom: 20px;
-}
-
-.card-header h2 {
-  font-family: 'Outfit', sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 4px;
-}
-
-.card-header p {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.flex-between {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* Forms */
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-row {
-  display: flex;
-  gap: 16px;
-}
-
-.form-group.col {
-  flex: 1;
-}
-
-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-
-.form-control {
-  width: 100%;
-  padding: 10px 14px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: #fff;
-  font-size: 14px;
-  transition: var(--transition);
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-select.form-control {
-  appearance: none;
-  cursor: pointer;
-}
-
-.help-text {
-  display: block;
-  font-size: 12px;
-  color: var(--text-dim);
-  margin-top: 5px;
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  border: none;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: #042f2e;
-}
-
-.btn-primary:hover {
-  background: var(--primary-hover);
-  box-shadow: 0 0 15px var(--primary-glow);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: var(--bg-subtle);
-  color: #fff;
-  border: 1px solid var(--border-color);
-}
-
-.btn-secondary:hover {
-  background: #2b3952;
-}
-
-.btn-lg {
-  padding: 12px 28px;
-  font-size: 15px;
-}
-
-.btn-text {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.btn-text:hover {
-  color: #fff;
-}
-
-/* Tables */
-.table-container {
-  overflow-y: auto;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-}
-
-.feed-table-wrapper {
-  max-height: 380px;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 13px;
-}
-
-.data-table th {
-  background: var(--bg-subtle);
-  padding: 10px 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border-color);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.data-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.data-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.table-sm th, .table-sm td {
-  padding: 6px 10px;
-  font-size: 12px;
-}
-
-.input-cost {
-  width: 90px;
-  padding: 5px 8px;
-  background: var(--bg-main);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: #fff;
-  font-size: 13px;
-}
-
-.action-footer {
-  margin-top: 14px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Alert Boxes */
-.info-alert {
-  display: flex;
-  gap: 12px;
-  background: rgba(6, 182, 212, 0.1);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  margin-top: 16px;
-  font-size: 13px;
-  color: #bae6fd;
-}
-
-/* Progress & Console */
-.progress-section {
-  margin-bottom: 24px;
-  background: var(--bg-subtle);
-  padding: 16px 20px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-}
-
-.progress-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-.progress-bar-container {
-  width: 100%;
-  height: 12px;
-  background: var(--bg-main);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--secondary), var(--primary));
-  border-radius: 6px;
-  transition: width 0.3s ease;
-}
-
-.console-wrapper {
-  background: #060911;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-}
-
-.console-header {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 14px;
-  background: var(--bg-subtle);
-  border-bottom: 1px solid var(--border-color);
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.console-box {
-  padding: 16px;
-  height: 380px;
-  overflow-y: auto;
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  color: #a7f3d0;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-/* KPI Cards */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 18px;
-  margin-bottom: 20px;
-}
-
-.kpi-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.kpi-icon {
-  font-size: 32px;
-  background: var(--bg-subtle);
-  padding: 10px;
-  border-radius: var(--radius-md);
-}
-
-.kpi-label {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 500;
-  display: block;
-  margin-bottom: 2px;
-}
-
-.kpi-content h3 {
-  font-family: 'Outfit', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.kpi-sub {
-  font-size: 11px;
-  color: var(--text-dim);
-  display: block;
-}
-
-/* Charts */
-.chart-container-pie {
-  height: 280px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.chart-container-line {
-  height: 320px;
-}
-
-.constraint-tag {
-  display: inline-block;
-  background: rgba(244, 63, 94, 0.15);
-  border: 1px solid rgba(244, 63, 94, 0.3);
-  color: #fda4af;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  margin-right: 8px;
-  margin-bottom: 8px;
-}
-
-.constraint-tag .count {
-  font-weight: 700;
-  background: rgba(244, 63, 94, 0.3);
-  padding: 1px 6px;
-  border-radius: 10px;
-  margin-left: 4px;
-}
-
-.mt-3 { margin-top: 16px; }
-.mt-4 { margin-top: 24px; }
-
-</style>
+  <!-- CSS Modular -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-container">
-    <!-- Header / Navbar -->
+    <!-- Header -->
     <header class="app-header">
       <div class="brand">
         <div class="brand-logo">🐄</div>
         <div class="brand-text">
-          <h1>RuFaS Simulation Studio</h1>
-          <span class="badge badge-subtle">Pesquisa Operacional • IFG Goiás</span>
+          <h1>RuFaS <span style="font-weight: 300; color: var(--accent-cyan); font-size: 18px;">Simulation Studio</span></h1>
+          <p class="subtitle">Pesquisa Operacional - Otimização de Ração & Análise de Sustentabilidade (IFG)</p>
         </div>
       </div>
       <div class="header-actions">
-        <div id="sim-status-badge" class="status-indicator idle">
-          <span class="status-dot"></span>
-          <span id="sim-status-label">Pronto</span>
-        </div>
-        <button id="btn-quick-run" class="btn btn-primary" onclick="startSimulation()">
-          <span class="icon">▶</span> Executar Simulação
+        <span class="badge" id="sim-status-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">SISTEMA PRONTO</span>
+        <button class="btn btn-primary" id="btn-quick-run">
+          <span class="btn-icon">⚡</span> Rodar Simulação
         </button>
       </div>
     </header>
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <button class="tab-btn active" data-tab="tab-config" onclick="switchTab('tab-config')">
+      <button class="tab-btn active" data-tab="tab-config">
         <span class="tab-icon">⚙️</span> Configuração & Insumos
       </button>
-      <button class="tab-btn" data-tab="tab-run" onclick="switchTab('tab-run')">
+      <button class="tab-btn" data-tab="tab-run">
         <span class="tab-icon">🚀</span> Execução & Logs
       </button>
-      <button class="tab-btn" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard')">
-        <span class="tab-icon">📊</span> Dashboard de Resultados
+      <button class="tab-btn" data-tab="tab-dashboard">
+        <span class="tab-icon">📊</span> Dashboard Geral
+      </button>
+      <button class="tab-btn" data-tab="tab-po">
+        <span class="tab-icon">📐</span> Pesquisa Operacional & Sensibilidade
       </button>
     </nav>
 
-    <!-- Tab 1: Configuração -->
+    <!-- TAB 1: Configuração & Insumos -->
     <main class="tab-content active" id="tab-config">
-      <div class="grid-2-col">
-        <!-- Card 1: Cenário & Tempo -->
+      <div class="grid-2col">
+        <!-- Cenário e Período -->
         <div class="card">
           <div class="card-header">
-            <h2>⏱️ Parâmetros do Cenário e Tempo</h2>
-            <p>Selecione o módulo de simulação e a janela temporal.</p>
+            <h2>Cenário & Período de Simulação</h2>
           </div>
           <div class="card-body">
             <div class="form-group">
-              <label for="select-task">Arquivo de Tarefa (Task):</label>
-              <select id="select-task" class="form-control">
-                <option value="input/data/tasks/example_animals_only_task.json">Apenas Animais & Ração (example_animals_only_task.json)</option>
-                <option value="input/data/tasks/example_freestall_task.json">Fazenda Completa (example_freestall_task.json)</option>
+              <label for="select-task">Cenário de Tarefa (Task JSON)</label>
+              <select id="select-task" class="form-control"></select>
+              <small class="form-hint">Define o pipeline de execução e os modelos biofísicos ativos.</small>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col-half">
+                <label>Data Inicial (Ano : Dia)</label>
+                <div class="input-group-row">
+                  <input type="number" id="input-start-year" class="form-control" value="2013" min="2000" max="2050">
+                  <span class="separator">:</span>
+                  <input type="number" id="input-start-day" class="form-control" value="1" min="1" max="365">
+                </div>
+              </div>
+              <div class="form-group col-half">
+                <label>Data Final (Ano : Dia)</label>
+                <div class="input-group-row">
+                  <input type="number" id="input-end-year" class="form-control" value="2013" min="2000" max="2050">
+                  <span class="separator">:</span>
+                  <input type="number" id="input-end-day" class="form-control" value="31" min="1" max="365">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group mt-3">
+              <label for="select-opt-mode">Tipo de Otimizador (Pesquisa Operacional)</label>
+              <select id="select-opt-mode" class="form-control">
+                <option value="nonlinear">Não-Linear (NLP - SLSQP Biofísico / Padrão RuFaS)</option>
+                <option value="linear">Linear (LP - HiGHS Simplex / Restrições Lineares)</option>
               </select>
-              <small class="help-text">O modo "Apenas Animais" foca na biologia e otimização de dieta com execução rápida.</small>
+              <small class="form-hint">
+                <strong>Linear (LP):</strong> Programação Linear clássica com coeficientes estáticos e método Simplex (HiGHS).<br>
+                <strong>Não-Linear (NLP):</strong> Programação Não-Linear com desconto dinâmico de taxa de passagem ruminal (SLSQP).
+              </small>
             </div>
 
-            <div class="form-row">
-              <div class="form-group col">
-                <label for="input-start-year">Ano Inicial:</label>
-                <input type="number" id="input-start-year" class="form-control" value="2013">
-              </div>
-              <div class="form-group col">
-                <label for="input-start-day">Dia Inicial:</label>
-                <input type="number" id="input-start-day" class="form-control" value="1" min="1" max="365">
-              </div>
+            <div class="card-footer-action">
+              <button class="btn btn-outline" id="btn-save-config">💾 Salvar Parâmetros Gerais</button>
             </div>
+          </div>
+        </div>
 
-            <div class="form-row">
-              <div class="form-group col">
-                <label for="input-end-year">Ano Final:</label>
-                <input type="number" id="input-end-year" class="form-control" value="2013">
-              </div>
-              <div class="form-group col">
-                <label for="input-end-day">Dia Final (Duração):</label>
-                <input type="number" id="input-end-day" class="form-control" value="31" min="1" max="365">
-              </div>
+        <!-- Instruções de Pesquisa Operacional -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Modelagem Matemática e Formulação de Rações</h2>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 12px;">
+              O módulo de Pesquisa Operacional formula dietas de mínimo custo com escolha entre duas abordagens matemáticas:
+            </p>
+            <div class="theory-box" style="margin-top: 0; margin-bottom: 12px;">
+              <strong>1. Programação Linear (LP - Simplex HiGHS):</strong><br>
+              $\min \mathbf{c}^T \mathbf{x} \quad \text{sujeito a} \quad \mathbf{A}_{ub}\mathbf{x} \le \mathbf{b}_{ub}, \quad \mathbf{l} \le \mathbf{x} \le \mathbf{u}$<br>
+              <span style="font-size: 12px; color: var(--text-dim);">Nutrientes e exigências modelados com matriz de coeficientes constantes.</span>
             </div>
-
-            <div class="info-alert">
-              <span>💡</span>
-              <p>Recomendado para testes e apresentações: <strong>30 a 60 dias</strong>. A simulação leva cerca de 10 a 20 segundos.</p>
+            <div class="theory-box" style="margin-top: 0; border-left-color: var(--accent-amber);">
+              <strong>2. Programação Não-Linear (NLP - SLSQP):</strong><br>
+              $\min \sum c_i x_i \quad \text{sujeito a} \quad g_j(\mathbf{x}) \le 0$<br>
+              <span style="font-size: 12px; color: var(--text-dim);">Digestibilidade e energia diminuem dinamicamente conforme o consumo ($DMI$) aumenta.</span>
             </div>
+          </div>
+        </div>
+      </div>
 
-            <button id="btn-save-config" class="btn btn-secondary mt-3" onclick="saveGeneralConfig()">
-              💾 Salvar Configurações
+      <!-- Gestão e Seleção de Insumos da Dieta -->
+      <div class="card mt-4">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2>Gestão de Insumos da Dieta & Custos</h2>
+            <p class="subtitle">Adicione ou retire ingredientes da biblioteca NASEM e defina os preços de compra ($/kg de matéria seca) para a otimização.</p>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-outline" id="btn-toggle-add-panel">
+              ➕ Incluir Insumo
+            </button>
+            <button class="btn btn-primary" id="btn-save-feeds">
+              💾 Salvar Alterações de Insumos
             </button>
           </div>
         </div>
 
-        <!-- Card 2: Preços e Custos dos Alimentos (Pesquisa Operacional) -->
+        <div class="card-body">
+          <!-- Painel Retrátil de Inclusão de Novo Insumo -->
+          <div id="panel-add-feed" class="add-feed-panel" style="display: none; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px;">
+            <h3 style="font-size: 15px; margin-bottom: 12px; color: #fff; display: flex; align-items: center; gap: 8px;">
+              <span>🌱</span> Incluir Ingrediente do Catálogo NASEM / RuFaS
+            </h3>
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 14px; align-items: flex-end;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="select-catalog-feed">Selecione o Alimento (Catálogo NASEM)</label>
+                <select id="select-catalog-feed" class="form-control" style="width: 100%;">
+                  <option value="">Carregando catálogo...</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="input-new-feed-cost">Preço ($/kg MS)</label>
+                <input type="number" id="input-new-feed-cost" class="form-control" value="0.10" step="0.001" min="0">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="input-new-feed-buffer">Buffer (Margem)</label>
+                <input type="number" id="input-new-feed-buffer" class="form-control" value="0.15" step="0.01" min="0" max="1">
+              </div>
+              <div>
+                <button class="btn btn-secondary" id="btn-confirm-add-feed" style="white-space: nowrap;">
+                  ✅ Adicionar à Dieta
+                </button>
+              </div>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">
+              💡 <em>O alimento será integrado na matriz de exigências zootécnicas e estará disponível para inclusão pelo otimizador de ração.</em>
+            </p>
+          </div>
+
+          <!-- Tabela de Insumos Ativos -->
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 70px;">ID</th>
+                  <th>Nome do Alimento & Especificação</th>
+                  <th style="width: 120px;">Tipo</th>
+                  <th style="width: 180px;">Teores Nutricionais</th>
+                  <th style="width: 160px;">Custo ($/kg MS)</th>
+                  <th style="width: 120px;">Buffer</th>
+                  <th style="width: 100px; text-align: center;">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="feeds-tbody"></tbody>
+            </table>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05);">
+            <span style="font-size: 13px; color: var(--text-dim);" id="feeds-count-badge">Carregando insumos...</span>
+            <small style="color: var(--text-muted); font-size: 12px;">
+              * Clique em "Salvar Alterações de Insumos" para persistir as inclusões, exclusões e preços no modelo.
+            </small>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 2: Execução & Logs -->
+    <main class="tab-content" id="tab-run">
+      <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2>Monitoramento em Tempo Real</h2>
+            <p class="subtitle" id="sim-status-text">Pronto para iniciar a simulação</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-outline" id="btn-clear-logs">Limpar Terminal</button>
+            <button class="btn btn-primary" id="btn-start-sim">🚀 Executar Simulação</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="progress-section">
+            <div class="progress-labels">
+              <span>Progresso dos dias simulados</span>
+              <strong id="progress-percent">0%</strong>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="progress-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <div class="console-wrapper mt-3">
+            <div class="console-header">Terminal de Saída (stdout)</div>
+            <pre class="console-body" id="console-output">Aguardando início da simulação...</pre>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 3: Dashboard Geral -->
+    <main class="tab-content" id="tab-dashboard">
+      <div class="kpi-grid">
+        <div class="card kpi-card">
+          <span class="kpi-icon">🥛</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Produção Média de Leite</span>
+            <h3 id="kpi-milk">-- kg</h3>
+            <span class="kpi-sub">Por dia (Rebanho Total)</span>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-icon">🌾</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Consumo de Matéria Seca</span>
+            <h3 id="kpi-dmi">-- kg</h3>
+            <span class="kpi-sub">Por vaca / dia (DMI)</span>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-icon">📅</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Dias Simulados</span>
+            <h3 id="kpi-days">--</h3>
+            <span class="kpi-sub">Período de execução</span>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-icon">🥗</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Ingredientes Ativos</span>
+            <h3 id="kpi-ingredients">--</h3>
+            <span class="kpi-sub">Na dieta ótima (LAC_COW)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2col mt-4">
+        <!-- Dieta Ótima -->
         <div class="card">
           <div class="card-header">
-            <h2>🌾 Custos dos Alimentos (Variáveis de Custo $c_i$)</h2>
-            <p>Altere os preços dos alimentos para analisar a sensibilidade da dieta de custo mínimo.</p>
+            <h2>Composição da Dieta Ótima (Vacas em Lactação)</h2>
+            <p class="subtitle">Distribuição dos alimentos na solução ótima</p>
           </div>
           <div class="card-body">
-            <div class="table-container feed-table-wrapper">
-              <table class="data-table" id="feeds-table">
+            <div class="chart-container-pie">
+              <canvas id="chart-diet-pie"></canvas>
+            </div>
+            <div class="table-container mt-3">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Alimento</th>
+                    <th>Consumo (kg MS)</th>
+                    <th>Inclusão (%)</th>
+                  </tr>
+                </thead>
+                <tbody id="table-diet-breakdown"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Produção de Leite -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Curva Diária de Produção de Leite</h2>
+            <p class="subtitle">Evolução temporal ao longo dos dias</p>
+          </div>
+          <div class="card-body">
+            <div class="chart-container-line">
+              <canvas id="chart-milk-trend"></canvas>
+            </div>
+            <div class="card mt-3" style="background: var(--bg-subtle);">
+              <div class="card-body">
+                <h4 style="font-size: 14px; margin-bottom: 8px;">Restrições Ativas no Otimizador</h4>
+                <div id="binding-constraints-container">
+                  <p class="text-muted">Nenhum dado registrado.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h2>Consumo de Matéria Seca (DMI) por Categoria Animal</h2>
+          <p class="subtitle">Bezerros, Novilhas, Pré-parto e Vacas em Lactação</p>
+        </div>
+        <div class="card-body">
+          <div class="chart-container-line">
+            <canvas id="chart-dmi-pens"></canvas>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 4: Pesquisa Operacional & Sensibilidade -->
+    <main class="tab-content" id="tab-po">
+      <!-- Toolbar de Sensibilidade -->
+      <div class="po-toolbar">
+        <div class="form-group">
+          <label for="select-po-feed">Ingrediente da Dieta para Análise</label>
+          <select id="select-po-feed" class="form-control"></select>
+        </div>
+        <div class="form-group" style="max-width: 180px;">
+          <label for="input-po-milk-price">Preço do Leite ($/kg)</label>
+          <input type="number" id="input-po-milk-price" class="form-control" value="0.45" step="0.01" min="0.1">
+        </div>
+        <div class="po-actions">
+          <button class="btn btn-secondary" id="btn-calc-sensitivity">⚡ Calcular Sensibilidade</button>
+          <button class="btn btn-outline" id="btn-compare-solvers" style="border-color: #8b5cf6; color: #a78bfa;">⚖️ Comparar Solvers (LP vs NLP)</button>
+          <button class="btn btn-outline" id="btn-export-po-csv">📥 Exportar Relatório (CSV)</button>
+        </div>
+      </div>
+
+      <!-- KPIs Econômicos de PO -->
+      <div class="kpi-grid">
+        <div class="card kpi-card">
+          <span class="kpi-icon">💰</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Custo Diário da Ração</span>
+            <h3 id="po-kpi-cost-cow" style="color: #f59e0b;">$ --</h3>
+            <span class="kpi-sub">Por vaca / dia</span>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-icon">📉</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Custo da Ração / kg Leite</span>
+            <h3 id="po-kpi-cost-milk" style="color: #06b6d4;">$ --</h3>
+            <span class="kpi-sub">Custo de alimentação unitário</span>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-icon">📈</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Margem IOFC</span>
+            <h3 id="po-kpi-iofc" style="color: #10b981;">$ --</h3>
+            <span class="kpi-sub">Receita Leite - Custo Ração</span>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-icon">⚡</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Eficiência Alimentar (FCE)</span>
+            <h3 id="po-kpi-efficiency">--</h3>
+            <span class="kpi-sub">kg leite produzido / kg MS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid 2 colunas: Gráfico de Sensibilidade + Tabela de Custos -->
+      <div class="grid-2col mt-4">
+        <!-- Gráfico de Curva de Sensibilidade -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Curva de Sensibilidade Paramétrica</h2>
+            <p class="subtitle">
+              Insumo: <strong id="po-selected-feed-name" style="color: #fff;">--</strong> | 
+              Elasticidade: <strong id="po-feed-elasticity" style="color: var(--accent-amber);">--</strong>
+            </p>
+          </div>
+          <div class="card-body">
+            <div class="chart-container-line" style="height: 350px;">
+              <canvas id="chart-sensitivity"></canvas>
+            </div>
+            <div class="theory-box">
+              <strong>Interpretação Econômica:</strong> A inclinação da curva representa o peso orçamentário do insumo. Uma elasticidade próxima de 1.0 indica alta sensibilidade do custo final às variações deste alimento no mercado de commodities.
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela de Decomposição da Dieta e Custos -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Decomposição de Custos da Solução Ótima</h2>
+            <p class="subtitle">Matriz de ingredientes, inclusão e participação no orçamento</p>
+          </div>
+          <div class="card-body">
+            <div class="table-container">
+              <table class="data-table">
                 <thead>
                   <tr>
                     <th>ID</th>
                     <th>Ingrediente</th>
-                    <th>Custo Atual ($/kg)</th>
-                    <th>Novo Preço</th>
+                    <th>Inclusão (kg)</th>
+                    <th>% MS</th>
+                    <th>Preço ($/kg)</th>
+                    <th>Custo ($/dia)</th>
+                    <th>% Custo</th>
                   </tr>
                 </thead>
-                <tbody id="feeds-tbody">
-                  <!-- Inserido dinamicamente via JS -->
-                </tbody>
+                <tbody id="table-po-diet-body"></tbody>
               </table>
-            </div>
-            <div class="action-footer">
-              <button id="btn-save-feeds" class="btn btn-primary" onclick="saveFeedsConfig()">
-                Salvar Preços dos Alimentos
-              </button>
             </div>
           </div>
         </div>
       </div>
-    </main>
 
-    <!-- Tab 2: Execução & Logs -->
-    <main class="tab-content" id="tab-run">
-      <div class="card">
-        <div class="card-header flex-between">
-          <div>
-            <h2>🚀 Execução do Simulador</h2>
-            <p>Acompanhe o avanço dia a dia da simulação em tempo real.</p>
+      <!-- Tabela de Restrições e Análise de Folgas -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h2>Análise de Restrições e Folgas (Slack Analysis)</h2>
+          <p class="subtitle">Identificação dos gargalos ativos que determinam os custos-sombra na programação matemática</p>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Restrição Matemática</th>
+                  <th>Descrição Fisiológica / Zootécnica</th>
+                  <th>Padrão</th>
+                  <th>Status no Otimizador</th>
+                  <th>Diagnóstico Operacional</th>
+                </tr>
+              </thead>
+              <tbody id="table-po-constraints-body"></tbody>
+            </table>
           </div>
-          <button id="btn-start-sim" class="btn btn-primary btn-lg" onclick="startSimulation()">
-            ▶ Iniciar Simulação
+
+          <div class="theory-box">
+            <strong>Fundamentos de Pesquisa Operacional (KKT & Dualidade):</strong>
+            No método SLSQP, restrições com status <em>Ativa (Binding)</em> possuem multiplicador de Lagrange $\lambda > 0$ (preço-sombra). Elas representam os limites mais rígidos do modelo; relaxar uma restrição ativa diminui imediatamente o custo total da ração. Restrições com <em>Folga</em> estão folgadas ($\lambda = 0$), não exercendo pressão sobre o custo ótimo da dieta.
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparativo de Métodos de Otimização (LP vs NLP) -->
+      <div class="card mt-4" id="card-solver-comparison">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2>⚖️ Comparativo de Modelos: Linear (LP / HiGHS) vs Não-Linear (NLP / SLSQP)</h2>
+            <p class="subtitle">Análise quantitativa do trade-off entre formulação estática e simulação biofísica dinâmica</p>
+          </div>
+          <button class="btn btn-primary" id="btn-refresh-compare" style="background: #8b5cf6; border-color: #7c3aed;">
+            🔄 Atualizar Comparação
           </button>
         </div>
         <div class="card-body">
-          <!-- Progress Bar -->
-          <div class="progress-section">
-            <div class="progress-labels">
-              <span id="progress-status-text">Pronto para iniciar</span>
-              <span id="progress-percent">0%</span>
+          <!-- KPI Cards Comparativos -->
+          <div class="kpi-grid">
+            <div class="card kpi-card" style="border-color: rgba(59, 130, 246, 0.4);">
+              <span class="kpi-icon">📐</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Linear (LP / HiGHS)</span>
+                <h3 id="compare-lp-cost" style="color: #60a5fa;">$ --</h3>
+                <span class="kpi-sub" id="compare-lp-dmi">Consumo: -- kg MS/dia</span>
+              </div>
             </div>
-            <div class="progress-bar-container">
-              <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+            <div class="card kpi-card" style="border-color: rgba(245, 158, 11, 0.4);">
+              <span class="kpi-icon">🧬</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Não-Linear (NLP / SLSQP)</span>
+                <h3 id="compare-nlp-cost" style="color: #f59e0b;">$ --</h3>
+                <span class="kpi-sub" id="compare-nlp-dmi">Consumo: -- kg MS/dia</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="border-color: rgba(16, 185, 129, 0.4);">
+              <span class="kpi-icon">📊</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Diferença de Custo (Δ)</span>
+                <h3 id="compare-cost-diff" style="color: #10b981;">--</h3>
+                <span class="kpi-sub" id="compare-cost-diff-pct">Variação relativa: --</span>
+              </div>
             </div>
           </div>
 
-          <!-- Console Log Viewer -->
-          <div class="console-wrapper">
-            <div class="console-header">
-              <span>Terminal de Saída (RuFaS Log)</span>
-              <button id="btn-clear-logs" class="btn-text">Limpar</button>
-            </div>
-            <pre class="console-box" id="console-output">Aguardando início da execução...</pre>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <!-- Tab 3: Dashboard de Resultados -->
-    <main class="tab-content" id="tab-dashboard">
-      <!-- KPI Row -->
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-icon">🥛</div>
-          <div class="kpi-content">
-            <span class="kpi-label">Produção Média de Leite</span>
-            <h3 id="kpi-milk">-- kg/dia</h3>
-            <span class="kpi-sub">Total diário do rebanho</span>
-          </div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon">🌾</div>
-          <div class="kpi-content">
-            <span class="kpi-label">Ingestão de Matéria Seca (DMI)</span>
-            <h3 id="kpi-dmi">-- kg/vaca</h3>
-            <span class="kpi-sub">Média vacas em lactação</span>
-          </div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon">🎯</div>
-          <div class="kpi-content">
-            <span class="kpi-label">Ingredientes Ativos na Dieta</span>
-            <h3 id="kpi-ingredients">--</h3>
-            <span class="kpi-sub">Escolhidos pelo Otimizador</span>
-          </div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon">📅</div>
-          <div class="kpi-content">
-            <span class="kpi-label">Período Simulado</span>
-            <h3 id="kpi-days">-- dias</h3>
-            <span class="kpi-sub" id="kpi-file">Arquivo de saída</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Charts Row 1: Diet Breakdown & Milk Production -->
-      <div class="grid-2-col mt-4">
-        <div class="card">
-          <div class="card-header">
-            <h2>🥗 Formulação Ótima da Dieta (Problema da Dieta)</h2>
-            <p>Ingredientes calculados pelo <code>RationOptimizer</code> (scipy.optimize)</p>
-          </div>
-          <div class="card-body chart-container-pie">
-            <canvas id="chart-diet"></canvas>
-          </div>
-          <div class="diet-legend-table mt-3">
-            <table class="data-table table-sm" id="table-diet-breakdown">
+          <!-- Tabela de Comparação de Ingredientes Lado a Lado -->
+          <div class="table-container mt-4">
+            <table class="data-table">
               <thead>
                 <tr>
-                  <th>Alimento</th>
-                  <th>Qtd (kg MS)</th>
-                  <th>Proporção (%)</th>
+                  <th>Ingrediente</th>
+                  <th>Preço ($/kg)</th>
+                  <th style="color: #60a5fa;">Inclusão LP (kg)</th>
+                  <th style="color: #60a5fa;">% LP</th>
+                  <th style="color: #f59e0b;">Inclusão NLP (kg)</th>
+                  <th style="color: #f59e0b;">% NLP</th>
+                  <th>Diferença Δ (kg)</th>
                 </tr>
               </thead>
-              <tbody id="tbody-diet-breakdown">
-                <!-- Inserido dinamicamente -->
+              <tbody id="table-compare-solvers-body">
+                <tr><td colspan="7" style="text-align: center; color: var(--text-dim);">Clique em "Comparar Solvers" para calcular e confrontar os dois métodos.</td></tr>
               </tbody>
             </table>
           </div>
-        </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h2>📈 Curva Diária de Produção de Leite</h2>
-            <p>Evolução da produção de leite (kg/dia) ao longo do período simulado</p>
-          </div>
-          <div class="card-body chart-container-line">
-            <canvas id="chart-milk"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Charts Row 2: Intake across pens & Constraints Analysis -->
-      <div class="grid-2-col mt-4">
-        <div class="card">
-          <div class="card-header">
-            <h2>🐄 Consumo de Alimento por Categoria (DMI)</h2>
-            <p>Matéria seca ingerida por animal/dia em cada curral/lote</p>
-          </div>
-          <div class="card-body chart-container-line">
-            <canvas id="chart-dmi-pens"></canvas>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h2>⚖️ Análise de Restrições Ativas (PO)</h2>
-            <p>Restrições nutricionais que atingiram o limite durante a otimização</p>
-          </div>
-          <div class="card-body">
-            <div id="binding-constraints-container">
-              <p class="text-muted">Carregando restrições...</p>
-            </div>
-            <div class="info-alert mt-3">
-              <span>📌</span>
-              <p>Restrições como <code>protein_constraint_upper</code> indicam que a dieta atingiu o teto permitido de proteína metabolizável para minimizar o custo sem exceder o balanço de nitrogênio.</p>
-            </div>
+          <!-- Explicação Teórica e Zootécnica -->
+          <div class="theory-box" style="border-left-color: #8b5cf6;">
+            <strong>Fundamentos do Comparativo de Solvers (LP vs NLP):</strong>
+            <p id="compare-interpretation" style="margin-top: 6px;">
+              O modelo <strong>Linear (LP / HiGHS Simplex)</strong> trata os teores nutricionais (energia líquida e proteína metabolizável) como parâmetros constantes independentes do nível de ingestão.
+              Já o modelo <strong>Não-Linear (NLP / SLSQP)</strong> incorpora os descontos de digestibilidade da taxa de passagem (*intake discount* do NRC/NASEM 2021): à medida que o animal consome mais matéria seca, o tempo de permanência no rúmen diminui, reduzindo o aproveitamento energético.
+            </p>
           </div>
         </div>
       </div>
     </main>
   </div>
 
-  <script>
-// RuFaS Web App Frontend Logic
-
-let chartDiet = null;
-let chartMilk = null;
-let chartDmi = null;
-let statusPollingInterval = null;
-let feedsData = [];
-
-document.addEventListener("DOMContentLoaded", () => {
-  setupTabs();
-  loadConfig();
-  loadResults();
-  setupEventListeners();
-  checkStatus();
-});
-
-// Tab navigation
-function setupTabs() {
-  const tabs = document.querySelectorAll(".tab-btn");
-  tabs.forEach(btn => {
-    btn.addEventListener("click", () => {
-      tabs.forEach(t => t.classList.remove("active"));
-      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-
-      btn.classList.add("active");
-      const targetId = btn.getAttribute("data-tab");
-      document.getElementById(targetId).classList.add("active");
-
-      if (targetId === "tab-dashboard") {
-        loadResults();
-      }
-    });
-  });
-}
-
-function switchTab(tabId) {
-  const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-  if (tabBtn) tabBtn.click();
-}
-
-// Setup Event Listeners
-function setupEventListeners() {
-  document.getElementById("btn-save-config").addEventListener("click", saveGeneralConfig);
-  document.getElementById("btn-save-feeds").addEventListener("click", saveFeedsConfig);
-
-  const startSim = () => {
-    switchTab("tab-run");
-    startSimulation();
-  };
-
-  document.getElementById("btn-quick-run").addEventListener("click", startSim);
-  document.getElementById("btn-start-sim").addEventListener("click", startSim);
-
-  document.getElementById("btn-clear-logs").addEventListener("click", () => {
-    document.getElementById("console-output").textContent = "";
-  });
-}
-
-// 1. Load Configurations
-async function loadConfig() {
-  try {
-    const res = await fetch("/api/config");
-    const data = await res.json();
-    if (data.error) return console.error(data.error);
-
-    // Populate task select
-    const taskSelect = document.getElementById("select-task");
-    taskSelect.innerHTML = "";
-    data.available_tasks.forEach(t => {
-      const opt = document.createElement("option");
-      opt.value = t.rel_path;
-      opt.textContent = t.filename;
-      if (t.rel_path === data.current_task) opt.selected = true;
-      taskSelect.appendChild(opt);
-    });
-
-    document.getElementById("input-start-year").value = data.start_year;
-    document.getElementById("input-start-day").value = data.start_day;
-    document.getElementById("input-end-year").value = data.end_year;
-    document.getElementById("input-end-day").value = data.end_day;
-
-    // Feeds table
-    feedsData = data.feeds || [];
-    renderFeedsTable(feedsData);
-  } catch (err) {
-    console.error("Erro ao carregar configurações:", err);
-  }
-}
-
-function renderFeedsTable(feeds) {
-  const tbody = document.getElementById("feeds-tbody");
-  tbody.innerHTML = "";
-
-  feeds.forEach(f => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><strong>${f.id}</strong></td>
-      <td>${f.name}</td>
-      <td>$ ${f.cost.toFixed(3)}</td>
-      <td>
-        <input type="number" step="0.01" min="0" class="input-cost" data-id="${f.id}" value="${f.cost}">
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-// 2. Save Configurations
-async function saveGeneralConfig() {
-  const payload = {
-    current_task: document.getElementById("select-task").value,
-    start_year: parseInt(document.getElementById("input-start-year").value),
-    start_day: parseInt(document.getElementById("input-start-day").value),
-    end_year: parseInt(document.getElementById("input-end-year").value),
-    end_day: parseInt(document.getElementById("input-end-day").value)
-  };
-
-  try {
-    const res = await fetch("/api/config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const result = await res.json();
-    if (result.success) {
-      alert("Configurações salvas com sucesso!");
-    } else {
-      alert("Erro ao salvar: " + (result.error || "Desconhecido"));
-    }
-  } catch (err) {
-    alert("Falha de conexão com o servidor.");
-  }
-}
-
-async function saveFeedsConfig() {
-  const inputs = document.querySelectorAll(".input-cost");
-  const feedsToSave = [];
-
-  inputs.forEach(inp => {
-    const id = parseInt(inp.getAttribute("data-id"));
-    const cost = parseFloat(inp.value) || 0.0;
-    feedsToSave.push({ id, cost });
-  });
-
-  try {
-    const res = await fetch("/api/config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ feeds: feedsToSave })
-    });
-    const result = await res.json();
-    if (result.success) {
-      alert("Preços dos alimentos salvos com sucesso!");
-      loadConfig();
-    } else {
-      alert("Erro ao salvar preços: " + (result.error || "Desconhecido"));
-    }
-  } catch (err) {
-    alert("Falha de conexão ao salvar preços.");
-  }
-}
-
-// 3. Start & Monitor Simulation
-async function startSimulation() {
-  try {
-    const res = await fetch("/api/run", { method: "POST" });
-    const result = await res.json();
-    if (result.error) {
-      alert(result.error);
-      return;
-    }
-
-    startPolling();
-  } catch (err) {
-    console.error("Erro ao iniciar simulação:", err);
-  }
-}
-
-function startPolling() {
-  if (statusPollingInterval) clearInterval(statusPollingInterval);
-  statusPollingInterval = setInterval(checkStatus, 1500);
-}
-
-async function checkStatus() {
-  try {
-    const res = await fetch("/api/status");
-    const status = await res.json();
-
-    const badge = document.getElementById("sim-status-badge");
-    const label = document.getElementById("sim-status-label");
-    const fill = document.getElementById("progress-bar-fill");
-    const textStatus = document.getElementById("progress-status-text");
-    const percent = document.getElementById("progress-percent");
-    const consoleBox = document.getElementById("console-output");
-
-    textStatus.textContent = status.status_text;
-    percent.textContent = `${status.progress}%`;
-    fill.style.width = `${status.progress}%`;
-
-    if (status.logs && status.logs.length > 0) {
-      consoleBox.textContent = status.logs.join("\n");
-      consoleBox.scrollTop = consoleBox.scrollHeight;
-    }
-
-    if (status.running) {
-      badge.className = "status-indicator running";
-      label.textContent = "Simulando...";
-      document.getElementById("btn-quick-run").disabled = true;
-      document.getElementById("btn-start-sim").disabled = true;
-    } else {
-      badge.className = "status-indicator idle";
-      label.textContent = "Pronto";
-      document.getElementById("btn-quick-run").disabled = false;
-      document.getElementById("btn-start-sim").disabled = false;
-
-      if (status.progress === 100) {
-        clearInterval(statusPollingInterval);
-        statusPollingInterval = null;
-        loadResults();
-      }
-    }
-  } catch (err) {
-    console.error("Erro no polling de status:", err);
-  }
-}
-
-// 4. Load & Render Dashboard Results
-async function loadResults() {
-  try {
-    const res = await fetch("/api/results");
-    const data = await res.json();
-
-    if (!data.has_results) {
-      document.getElementById("kpi-file").textContent = data.message || "Aguardando execução";
-      return;
-    }
-
-    // KPIs
-    document.getElementById("kpi-milk").textContent = `${data.kpis.avg_milk_daily} kg/dia`;
-    document.getElementById("kpi-dmi").textContent = `${data.kpis.avg_cow_dmi} kg/dia`;
-    document.getElementById("kpi-ingredients").textContent = `${data.kpis.active_ingredients_count} itens`;
-    document.getElementById("kpi-days").textContent = `${data.kpis.total_days_simulated} dias`;
-    document.getElementById("kpi-file").textContent = data.filename;
-
-    // Charts
-    renderDietChart(data.diet);
-    renderMilkChart(data.milk_series);
-    renderDmiChart(data.pens_dmi);
-    renderConstraints(data.binding_constraints);
-  } catch (err) {
-    console.error("Erro ao carregar resultados:", err);
-  }
-}
-
-function renderDietChart(diet) {
-  const ctx = document.getElementById("chart-diet").getContext("2d");
-  const labels = diet.map(d => `${d.name} (${d.percentage}%)`);
-  const values = diet.map(d => d.amount_kg);
-
-  // Colors
-  const colors = [
-    "#10b981", "#3b82f6", "#06b6d4", "#f59e0b",
-    "#ec4899", "#8b5cf6", "#64748b", "#14b8a6"
-  ];
-
-  if (chartDiet) chartDiet.destroy();
-
-  chartDiet = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: labels,
-      datasets: [{
-        data: values,
-        backgroundColor: colors.slice(0, values.length),
-        borderWidth: 2,
-        borderColor: "#131b2e"
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: "right",
-          labels: { color: "#94a3b8", font: { size: 11 } }
-        },
-        tooltip: {
-          callbacks: {
-            label: (item) => ` ${item.label}: ${item.raw} kg MS/dia`
-          }
-        }
-      }
-    }
-  });
-
-  // Table breakdown
-  const tbody = document.getElementById("tbody-diet-breakdown");
-  tbody.innerHTML = "";
-  diet.forEach(d => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${d.name}</td>
-      <td><strong>${d.amount_kg} kg</strong></td>
-      <td>${d.percentage}%</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function renderMilkChart(series) {
-  const ctx = document.getElementById("chart-milk").getContext("2d");
-  const labels = series.map(s => `Dia ${s.day}`);
-  const values = series.map(s => s.milk_kg);
-
-  if (chartMilk) chartMilk.destroy();
-
-  chartMilk = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "Produção de Leite (kg/dia)",
-        data: values,
-        borderColor: "#3b82f6",
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        borderWidth: 2,
-        fill: true,
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { ticks: { color: "#64748b" }, grid: { color: "rgba(255,255,255,0.05)" } },
-        y: { ticks: { color: "#64748b" }, grid: { color: "rgba(255,255,255,0.05)" } }
-      },
-      plugins: {
-        legend: { labels: { color: "#94a3b8" } }
-      }
-    }
-  });
-}
-
-function renderDmiChart(pensDmi) {
-  const ctx = document.getElementById("chart-dmi-pens").getContext("2d");
-  const datasets = [];
-  const palette = ["#10b981", "#06b6d4", "#f59e0b", "#ec4899"];
-  let idx = 0;
-  let labels = [];
-
-  for (const [penName, series] of Object.entries(pensDmi)) {
-    if (labels.length === 0) {
-      labels = series.map(s => `Dia ${s.day}`);
-    }
-    datasets.push({
-      label: penName,
-      data: series.map(s => s.dmi),
-      borderColor: palette[idx % palette.length],
-      borderWidth: 2,
-      tension: 0.2,
-      fill: false
-    });
-    idx++;
-  }
-
-  if (chartDmi) chartDmi.destroy();
-
-  chartDmi = new Chart(ctx, {
-    type: "line",
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { ticks: { color: "#64748b" }, grid: { color: "rgba(255,255,255,0.05)" } },
-        y: {
-          ticks: { color: "#64748b" },
-          grid: { color: "rgba(255,255,255,0.05)" },
-          title: { display: true, text: "kg MS / animal / dia", color: "#94a3b8" }
-        }
-      },
-      plugins: {
-        legend: { labels: { color: "#94a3b8" } }
-      }
-    }
-  });
-}
-
-function renderConstraints(binding) {
-  const container = document.getElementById("binding-constraints-container");
-  container.innerHTML = "";
-
-  const keys = Object.keys(binding || {});
-  if (keys.length === 0) {
-    container.innerHTML = `<p class="text-muted">Nenhuma violação ou restrição ativa registrada no otimizador.</p>`;
-    return;
-  }
-
-  keys.forEach(k => {
-    const span = document.createElement("span");
-    span.className = "constraint-tag";
-    span.innerHTML = `<strong>${k}</strong> <span class="count">${binding[k]}x</span>`;
-    container.appendChild(span);
-  });
-}
-
-</script>
+  <!-- Script Modular -->
+  <script src="app.js"></script>
 </body>
 </html>

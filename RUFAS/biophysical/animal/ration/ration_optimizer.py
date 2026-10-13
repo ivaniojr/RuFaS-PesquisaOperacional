@@ -1,5 +1,6 @@
+import os
 import random
-from scipy.optimize import OptimizeResult, minimize
+from scipy.optimize import OptimizeResult, minimize, linprog
 import numpy as np
 import numpy.typing as npt
 from typing import Callable, Any, Sequence, Optional
@@ -11,7 +12,7 @@ from RUFAS.general_constants import GeneralConstants
 from RUFAS.biophysical.animal.animal_module_constants import AnimalModuleConstants
 
 from RUFAS.biophysical.animal.data_types.nutrition_data_structures import NutritionRequirements
-from RUFAS.data_structures.feed_storage_to_animal_connection import RUFAS_ID, Feed, NutrientStandard
+from RUFAS.data_structures.feed_storage_to_animal_connection import RUFAS_ID, Feed, NutrientStandard, FeedComponentType
 
 from RUFAS.output_manager import OutputManager
 
@@ -140,8 +141,17 @@ class RationOptimizer:
 
     """
 
-    def __init__(self) -> None:
-        """Initializes RationOptimizer object"""
+    optimization_mode: str = "nonlinear"
+
+    def __init__(self, optimization_mode: str | None = None) -> None:
+        """Initializes RationOptimizer object with selectable optimization mode (linear or nonlinear)"""
+        env_mode = os.environ.get("RUFAS_OPTIMIZATION_MODE")
+        if env_mode:
+            self.optimization_mode = env_mode.lower()
+        elif optimization_mode:
+            self.optimization_mode = optimization_mode.lower()
+        else:
+            self.optimization_mode = RationOptimizer.optimization_mode
 
         self.constraint_functions: list[Callable[[Any, Any], float]] = []
         self.cow_constraints: list[dict[str, Callable[[Any, Any], float] | tuple[RationConfig] | str] | str] = []
@@ -904,11 +914,35 @@ class RationOptimizer:
 
         initial_decision_vector = self._check_initial_bounds(bounds, initial_decision_vector)
 
+        mode = os.environ.get("RUFAS_OPTIMIZATION_MODE", self.optimization_mode).lower()
+        if mode == "linear":
+            optimized_ration_attempt = self._attempt_linear_optimization(
+                ration_config=ration_config,
+                bounds=bounds,
+                animal_combination=animal_combination,
+                initial_decision_vector=initial_decision_vector,
+            )
+        else:
+            optimized_ration_attempt = self._attempt_nonlinear_optimization(
+                ration_config=ration_config,
+                bounds=bounds,
+                animal_combination=animal_combination,
+                initial_decision_vector=initial_decision_vector,
+            )
+
+        return optimized_ration_attempt, ration_config
+
+    def _attempt_nonlinear_optimization(
+        self,
+        ration_config: RationConfig,
+        bounds: list[tuple[float, float]],
+        animal_combination: AnimalCombination,
+        initial_decision_vector: npt.NDArray[np.float64],
+    ) -> OptimizeResult:
+        """Executes the standard non-linear optimization routine using SciPy's SLSQP method."""
         self.set_constraints(ration_config=ration_config)
-
         constraints_to_use = self._select_constraints(animal_combination)
-
-        optimized_ration_attempt = minimize(
+        return minimize(
             self.objective,
             initial_decision_vector,
             method="SLSQP",
@@ -917,7 +951,126 @@ class RationOptimizer:
             args=ration_config,
         )
 
-        return optimized_ration_attempt, ration_config
+    def _attempt_linear_optimization(
+        self,
+        ration_config: RationConfig,
+        bounds: list[tuple[float, float]],
+        animal_combination: AnimalCombination,
+        initial_decision_vector: npt.NDArray[np.float64],
+    ) -> OptimizeResult:
+        """
+        Formulates and solves the classic Linear Programming (LP) least-cost diet problem via HiGHS simplex.
+        Nutrient supplies are treated as linear functions of feed intake.
+        """
+        self.set_constraints(ration_config=ration_config)
+        n = len(ration_config.feeds_used)
+        c = np.array(ration_config.price_list, dtype=np.float64)
+
+        A_ub_rows: list[list[float]] = []
+        b_ub_rows: list[float] = []
+
+        # 1. DMI Upper Bound: sum(x) <= DMI_max
+        dmi_max = ration_config.initial_dry_matter_requirement * (1.0 + ration_config.dmi_constraint_fraction)
+        A_ub_rows.append([1.0] * n)
+        b_ub_rows.append(float(dmi_max))
+
+        # 2. DMI Lower Bound: sum(x) >= DMI_min => -sum(x) <= -DMI_min
+        dmi_min = ration_config.initial_dry_matter_requirement * (1.0 - ration_config.dmi_constraint_fraction)
+        A_ub_rows.append([-1.0] * n)
+        b_ub_rows.append(-float(dmi_min))
+
+        # 3. Energy Requirement: -sum(NEL_i * x_i) <= -NE_req
+        req_energy = getattr(ration_config.animal_requirements, "total_energy_requirement", None)
+        if req_energy is None or req_energy <= 0:
+            req_energy = (
+                getattr(ration_config.animal_requirements, "maintenance_energy", 0.0)
+                + getattr(ration_config.animal_requirements, "lactation_energy", 0.0)
+                + getattr(ration_config.animal_requirements, "growth_energy", 0.0)
+            )
+        if req_energy and req_energy > 0:
+            ne_coeffs = []
+            for feed in ration_config.feeds_used:
+                de_val = getattr(feed, "DE", 0.0) or 0.0
+                tdn_val = getattr(feed, "TDN", 0.0) or 0.0
+                if de_val > 0:
+                    nel = de_val * 0.64
+                elif tdn_val > 0:
+                    nel = tdn_val * 0.04409 * 0.64
+                else:
+                    nel = 0.0
+                ne_coeffs.append(-float(nel))
+            A_ub_rows.append(ne_coeffs)
+            b_ub_rows.append(-float(req_energy))
+
+        # 4. Metabolizable Protein (MP) Lower Bound: -sum(MP_i * x_i) <= -MP_req (in grams)
+        req_mp = getattr(ration_config.animal_requirements, "metabolizable_protein", 0.0) or 0.0
+        if req_mp > 0:
+            mp_coeffs = []
+            for feed in ration_config.feeds_used:
+                cp_val = getattr(feed, "CP", 0.0) or 0.0
+                # Nominal MP yield: approx. CP% * 6.5 g MP/kg MS
+                mp_coeffs.append(-float(cp_val * 6.5))
+            A_ub_rows.append(mp_coeffs)
+            b_ub_rows.append(-float(req_mp))
+
+            # Protein Upper Bound (1.15 * req_mp)
+            mp_upper_coeffs = [float(-val) for val in mp_coeffs]
+            A_ub_rows.append(mp_upper_coeffs)
+            b_ub_rows.append(float(req_mp * 1.15))
+
+        # 5. Calcium (Ca) Lower Bound: -sum(Ca_i * x_i) <= -Ca_req (in grams)
+        req_ca = getattr(ration_config.animal_requirements, "calcium", 0.0) or 0.0
+        if req_ca > 0:
+            ca_coeffs = [-float((getattr(feed, "calcium", 0.0) or 0.0) * 10.0) for feed in ration_config.feeds_used]
+            A_ub_rows.append(ca_coeffs)
+            b_ub_rows.append(-float(req_ca))
+
+        # 6. Phosphorus (P) Lower Bound: -sum(P_i * x_i) <= -P_req (in grams)
+        req_p = getattr(ration_config.animal_requirements, "phosphorus", 0.0) or 0.0
+        if req_p > 0:
+            p_coeffs = [-float((getattr(feed, "phosphorus", 0.0) or 0.0) * 10.0) for feed in ration_config.feeds_used]
+            A_ub_rows.append(p_coeffs)
+            b_ub_rows.append(-float(req_p))
+
+        # 7. Forage NDF Lower Bound: sum((fNDF_i - MIN_FORAGE_NDF) * x_i) >= 0 => -sum <= 0
+        min_fndf = AnimalModuleConstants.MINIMUM_RATION_FORAGE_NDF
+        fndf_coeffs = []
+        for feed in ration_config.feeds_used:
+            is_forage = getattr(feed, "feed_type", None) == FeedComponentType.FORAGE
+            ndf_val = float(getattr(feed, "NDF", 0.0) or 0.0)
+            f_ndf = ndf_val if is_forage else 0.0
+            fndf_coeffs.append(-float(f_ndf - min_fndf))
+        A_ub_rows.append(fndf_coeffs)
+        b_ub_rows.append(0.0)
+
+        # 8. Maximum Fat (EE) Upper Bound: sum((EE_i - MAX_FAT) * x_i) <= 0
+        max_fat = AnimalModuleConstants.MAXIMUM_RATION_FAT
+        fat_coeffs = [float((getattr(feed, "EE", 0.0) or 0.0) - max_fat) for feed in ration_config.feeds_used]
+        A_ub_rows.append(fat_coeffs)
+        b_ub_rows.append(0.0)
+
+        A_ub = np.array(A_ub_rows, dtype=np.float64)
+        b_ub = np.array(b_ub_rows, dtype=np.float64)
+
+        res = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method="highs")
+
+        if not res.success:
+            # Fallback seguro para SLSQP se os limites lineares forem estritamente infactíveis
+            return self._attempt_nonlinear_optimization(
+                ration_config=ration_config,
+                bounds=bounds,
+                animal_combination=animal_combination,
+                initial_decision_vector=initial_decision_vector,
+            )
+
+        return OptimizeResult(
+            x=res.x,
+            success=res.success,
+            status=res.status,
+            message=res.message,
+            fun=float(res.fun),
+            nit=int(res.nit),
+        )
 
     @staticmethod
     def _check_initial_bounds(

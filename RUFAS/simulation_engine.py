@@ -27,6 +27,7 @@ from RUFAS.input_manager import InputManager
 from RUFAS.output_manager import OutputManager
 from RUFAS.biophysical.field.manager.field_manager import FieldManager
 from RUFAS.biophysical.manure.manure_manager import ManureManager
+from RUFAS.biophysical.animal.ration.ration_optimizer import RationOptimizer
 from RUFAS.rufas_time import RufasTime
 from RUFAS.weather import Weather
 
@@ -232,6 +233,8 @@ class SimulationEngine:
             feeds_config = self.im.get_data("feed")
             nutrient_standard = NutrientStandard(self.im.get_data("config.nutrient_standard"))
             self.available_feeds = AvailableFeedsBuilder.setup_available_feeds(feeds_config, nutrient_standard)
+            opt_mode = self.im.get_data("config.optimization_mode", required=False) or "nonlinear"
+            RationOptimizer.optimization_mode = str(opt_mode).lower()
 
         if self.simulate_feed:
             feed_storage_configs = self.im.get_data("feed_storage_configurations")

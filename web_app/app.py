@@ -7,14 +7,43 @@ import csv
 import threading
 import subprocess
 from pathlib import Path
-from flask import Flask, jsonify, request, send_from_directory
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from flask import Flask, jsonify, request, send_from_directory, Response
+try:
+    from web_app.po_analytics import (
+        get_all_feed_names,
+        get_available_feeds_catalog,
+        update_feeds_file,
+        analyze_po_results,
+        run_sensitivity_analysis,
+        generate_po_csv_report,
+        compare_solvers
+    )
+except ModuleNotFoundError:
+    from po_analytics import (
+        get_all_feed_names,
+        get_available_feeds_catalog,
+        update_feeds_file,
+        analyze_po_results,
+        run_sensitivity_analysis,
+        generate_po_csv_report,
+        compare_solvers
+    )
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-VENV_PYTHON = Path(r"C:\Users\ivani\OneDrive\IFG_Goias\PesquisaOperacional\Projeto_Final\venv\Scripts\python.exe")
-if not VENV_PYTHON.exists():
-    VENV_PYTHON = Path(sys.executable)
+# Resolve Python executable across platforms (Linux / Windows / local venv)
+candidate_pythons = [
+    BASE_DIR / "venv" / "bin" / "python",
+    BASE_DIR / "venv" / "Scripts" / "python.exe",
+    Path(r"C:\Users\ivani\OneDrive\IFG_Goias\PesquisaOperacional\Projeto_Final\venv\Scripts\python.exe"),
+    Path(sys.executable),
+]
+VENV_PYTHON = next((p for p in candidate_pythons if p.exists()), Path(sys.executable))
 
 # Global execution state
 sim_state = {
@@ -31,19 +60,7 @@ sim_state = {
 sim_lock = threading.Lock()
 
 def get_feed_names():
-    feed_names = {}
-    csv_path = BASE_DIR / "input" / "data" / "feed" / "user_feeds.csv"
-    if csv_path.exists():
-        with open(csv_path, mode="r", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                try:
-                    f_id = int(row["rufas_id"])
-                    name = f"{row.get('Name', '')} ({row.get('feed_description', '')})".strip()
-                    feed_names[f_id] = name
-                except (ValueError, KeyError):
-                    continue
-    return feed_names
+    return get_all_feed_names(BASE_DIR)
 
 @app.route("/")
 def index():
@@ -80,6 +97,7 @@ def get_config():
         start_year, start_day = 2013, 1
         end_year, end_day = 2013, 31
         sim_type = "animals_only"
+        opt_mode = "nonlinear"
 
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
@@ -89,9 +107,11 @@ def get_config():
                 start_year, start_day = int(s_parts[0]), int(s_parts[1])
                 end_year, end_day = int(e_parts[0]), int(e_parts[1])
                 sim_type = c_data.get("simulation_type", "animals_only")
+                opt_mode = c_data.get("optimization_mode", "nonlinear")
 
-        # Feeds and costs
+        # Feeds and costs enriched with catalog metadata
         feed_names = get_feed_names()
+        catalog_map = {item["id"]: item for item in get_available_feeds_catalog(BASE_DIR)}
         feed_config_path = BASE_DIR / "input" / "data" / "feed" / "example_Midwest_feed.json"
         feeds_list = []
         if feed_config_path.exists():
@@ -99,17 +119,24 @@ def get_config():
                 f_data = json.load(f)
                 for item in f_data.get("feeds", []):
                     f_id = item.get("feed_type")
+                    cat_info = catalog_map.get(f_id, {})
                     feeds_list.append({
                         "id": f_id,
                         "name": feed_names.get(f_id, f"Alimento ID {f_id}"),
                         "cost": item.get("purchased_feed_cost", 0.0),
-                        "buffer": item.get("buffer", 0.15)
+                        "buffer": item.get("buffer", 0.15),
+                        "category": cat_info.get("category", "Geral"),
+                        "type": cat_info.get("type", "Insumo"),
+                        "cp": cat_info.get("cp", 0.0),
+                        "ndf": cat_info.get("ndf", 0.0),
+                        "tdn": cat_info.get("tdn", 0.0)
                     })
 
         return jsonify({
             "current_task": current_task_path,
             "available_tasks": available_tasks,
             "simulation_type": sim_type,
+            "optimization_mode": opt_mode,
             "start_year": start_year,
             "start_day": start_day,
             "end_year": end_year,
@@ -117,6 +144,24 @@ def get_config():
             "total_days": (end_day - start_day + 1) if start_year == end_year else 365,
             "feeds": feeds_list
         })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/feeds/catalog", methods=["GET"])
+def get_feeds_catalog_route():
+    try:
+        catalog = get_available_feeds_catalog(BASE_DIR)
+        return jsonify(catalog)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/feeds", methods=["POST"])
+def save_feeds_route():
+    try:
+        data = request.json or {}
+        feeds = data.get("feeds", [])
+        result = update_feeds_file(BASE_DIR, feeds)
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -129,6 +174,9 @@ def save_config():
         start_day = int(data.get("start_day", 1))
         end_year = int(data.get("end_year", 2013))
         end_day = int(data.get("end_day", 31))
+        opt_mode = data.get("optimization_mode", "nonlinear").lower()
+        if opt_mode not in ["linear", "nonlinear"]:
+            opt_mode = "nonlinear"
         feeds = data.get("feeds", [])
 
         # 1. Update task_manager_metadata.json
@@ -152,35 +200,39 @@ def save_config():
                     c_data = json.load(f)
                     c_data["start_date"] = f"{start_year}:{start_day}"
                     c_data["end_date"] = f"{end_year}:{end_day}"
+                    c_data["optimization_mode"] = opt_mode
                     f.seek(0)
                     json.dump(c_data, f, indent=4)
                     f.truncate()
 
-        # 3. Update feeds costs
-        feed_config_path = BASE_DIR / "input" / "data" / "feed" / "example_Midwest_feed.json"
-        if feed_config_path.exists() and feeds:
-            with open(feed_config_path, "r+", encoding="utf-8") as f:
-                f_data = json.load(f)
-                feed_map = {f["id"]: float(f["cost"]) for f in feeds if "id" in f and "cost" in f}
-                for item in f_data.get("feeds", []):
-                    f_id = item.get("feed_type")
-                    if f_id in feed_map:
-                        item["purchased_feed_cost"] = feed_map[f_id]
-                f.seek(0)
-                json.dump(f_data, f, indent=2)
-                f.truncate()
+        # 3. Update feeds (inclusion/removal and costs/buffer)
+        if feeds:
+            update_feeds_file(BASE_DIR, feeds)
 
-        return jsonify({"success": True, "message": "Configurações salvas com sucesso!"})
+        return jsonify({"success": True, "message": "Configurações e insumos salvos com sucesso!"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 def run_simulation_worker():
     global sim_state
     try:
+        # Pass current optimization mode explicitly in child process environment
+        env_vars = os.environ.copy()
+        try:
+            cfg_path = BASE_DIR / "input" / "data" / "config" / "example_animals_only_config.json"
+            if cfg_path.exists():
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    c_data = json.load(f)
+                    opt_m = c_data.get("optimization_mode", "nonlinear")
+                    env_vars["RUFAS_OPTIMIZATION_MODE"] = str(opt_m).lower()
+        except Exception:
+            pass
+
         cmd = [str(VENV_PYTHON), "-u", "main.py"]
         process = subprocess.Popen(
             cmd,
             cwd=str(BASE_DIR),
+            env=env_vars,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -339,6 +391,47 @@ def get_results():
             "pens_dmi": pens_dmi,
             "binding_constraints": binding_constraints
         })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/po/analytics", methods=["GET"])
+def get_po_analytics():
+    try:
+        milk_price = float(request.args.get("milk_price", 0.45))
+        data = analyze_po_results(BASE_DIR, milk_price=milk_price)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/po/sensitivity", methods=["GET"])
+def get_po_sensitivity():
+    try:
+        feed_id = int(request.args.get("feed_id", 50))
+        milk_price = float(request.args.get("milk_price", 0.45))
+        data = run_sensitivity_analysis(feed_id, BASE_DIR, milk_price=milk_price)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/po/export_csv", methods=["GET"])
+def export_po_csv():
+    try:
+        milk_price = float(request.args.get("milk_price", 0.45))
+        csv_text = generate_po_csv_report(BASE_DIR, milk_price=milk_price)
+        return Response(
+            csv_text,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=relatorio_pesquisa_operacional_rufas.csv"}
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/po/compare_solvers", methods=["GET"])
+def get_po_compare_solvers():
+    try:
+        milk_price = float(request.args.get("milk_price", 0.45))
+        data = compare_solvers(BASE_DIR, milk_price=milk_price)
+        return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
