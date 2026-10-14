@@ -898,9 +898,6 @@ class RationOptimizer:
             animal_combination,
         )
         sorted_previous_ration = dict(sorted(previous_ration.items())) if previous_ration else None
-        initial_decision_vector = np.array(
-            self._build_initial_value(sorted_previous_ration, ration_config), dtype=float
-        )
 
         if user_defined_ration_dictionary:
             sorted_user_defined_ration_dictionary = dict(sorted(user_defined_ration_dictionary.items()))
@@ -912,6 +909,17 @@ class RationOptimizer:
         else:
             bounds = self._build_bounds(ration_config)
 
+        initial_val = self._build_initial_value(sorted_previous_ration, ration_config)
+        if len(initial_val) != len(bounds):
+            price_list_length = len(bounds)
+            if price_list_length == 0:
+                initial_val = []
+            elif price_list_length == 1:
+                initial_val = [1.0]
+            else:
+                initial_val = [1.0] + [random.random() * 10 for _ in range(price_list_length - 1)]
+
+        initial_decision_vector = np.array(initial_val, dtype=float)
         initial_decision_vector = self._check_initial_bounds(bounds, initial_decision_vector)
 
         mode = os.environ.get("RUFAS_OPTIMIZATION_MODE", self.optimization_mode).lower()
@@ -1077,7 +1085,9 @@ class RationOptimizer:
         bounds: list[tuple[float, float]], initial_decision_vector: np.ndarray[tuple[int, ...], np.dtype]
     ) -> np.ndarray[tuple[int, ...], np.dtype]:
         """Checks the initial bounds of the optimization attempt."""
-        for i in range(0, len(initial_decision_vector)):
+        if len(bounds) == 0 or len(initial_decision_vector) == 0:
+            return initial_decision_vector
+        for i in range(min(len(initial_decision_vector), len(bounds))):
             if initial_decision_vector[i] < bounds[i][0] or initial_decision_vector[i] > bounds[i][1]:
                 initial_decision_vector[i] = np.clip(initial_decision_vector[i], bounds[i][0], bounds[i][1])
 
@@ -1088,9 +1098,15 @@ class RationOptimizer:
         previous_ration: Optional[dict[RUFAS_ID | str, float | str]], ration_config: RationConfig
     ) -> list[float]:
         """Builds the initial decision vector (`x0`) for the optimizer."""
-        if previous_ration:
-            return [value for key, value in previous_ration.items() if key not in ("status", "objective")]
         price_list_length = len(ration_config.price_list)
+        if previous_ration:
+            prev_vals = [value for key, value in previous_ration.items() if key not in ("status", "objective")]
+            if len(prev_vals) == price_list_length:
+                return prev_vals
+        if price_list_length == 0:
+            return []
+        if price_list_length == 1:
+            return [1.0]
         return [1.0] + [random.random() * 10 for _ in range(price_list_length - 1)]
 
     @staticmethod

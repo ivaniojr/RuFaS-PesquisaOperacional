@@ -155,16 +155,33 @@ def get_available_feeds_catalog(base_dir: Path, nutrient_standard: str = "NASEM"
 
 
 def get_active_feed_rel_path(base_dir: Path) -> str:
-    """Retorna o caminho relativo do arquivo de alimentos ativo no metadata."""
-    meta_path = base_dir / "input" / "metadata" / "example_animals_only_metadata.json"
-    if meta_path.exists():
+    """Retorna o caminho relativo do arquivo de alimentos ativo no cenário ou metadata."""
+    # 1. Verifica arquivo de cenário ativo
+    active_scenario_file = base_dir / "input" / "data" / "config" / "active_scenario.json"
+    if active_scenario_file.exists():
         try:
-            with open(meta_path, "r", encoding="utf-8") as f:
-                m = json.load(f)
-                return m.get("files", {}).get("feed", {}).get("path", "input/data/feed/example_Midwest_feed.json")
+            with open(active_scenario_file, "r", encoding="utf-8") as f:
+                s = json.load(f)
+                feed_p = s.get("feed_file")
+                if feed_p and (base_dir / feed_p).exists():
+                    return feed_p
         except Exception:
             pass
-    return "input/data/feed/example_Midwest_feed.json"
+
+    # 2. Verifica arquivos de metadata
+    for meta_name in ["example_freestall_dairy_metadata.json", "example_animals_only_metadata.json", "example_open_lot_metadata.json"]:
+        meta_path = base_dir / "input" / "metadata" / meta_name
+        if meta_path.exists():
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    m = json.load(f)
+                    feed_p = m.get("files", {}).get("feed", {}).get("path")
+                    if feed_p and (base_dir / feed_p).exists():
+                        return feed_p
+            except Exception:
+                pass
+
+    return "input/data/feed/example_Southwest_feed.json"
 
 
 def get_campo_dourado_scenario_info(base_dir: Path) -> Dict[str, Any]:
@@ -507,17 +524,18 @@ def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]], feed_rel
         # Filtra insumos que foram removidos do top-level
         valid_feeds = [f for f in cur_feeds if f.get("feed_type") in all_configured_ids]
 
-        # Para vacas em lactação (lac_cow), adiciona novos insumos ativos (exceto bezerros)
-        if combo == "lac_cow":
-            lac_feed_ids = {f["feed_type"] for f in valid_feeds}
+        # Para categorias de ruminantes/animais adultos (lac_cow, growing, close_up),
+        # assegura que todos os insumos ativos da fazenda estejam disponíveis para formulação
+        if combo in ["lac_cow", "growing", "close_up"]:
+            combo_feed_ids = {f["feed_type"] for f in valid_feeds}
             for f_item in updated_feeds:
                 f_type = f_item["feed_type"]
-                if f_type not in essential_calf_ids and f_type not in lac_feed_ids:
+                if f_type not in essential_calf_ids and f_type not in combo_feed_ids:
                     valid_feeds.append({
                         "feed_type": f_type,
                         "ration_percentage": 5.0
                     })
-                    lac_feed_ids.add(f_type)
+                    combo_feed_ids.add(f_type)
 
         # Renormaliza porcentagens para somar exatamente 100.0%
         if valid_feeds:

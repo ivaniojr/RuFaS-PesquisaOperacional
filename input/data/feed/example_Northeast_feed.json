@@ -90,13 +90,63 @@
       "animal_combination": "growing",
       "intake_option": "predict_DMI",
       "intake_value": null,
-      "feeds": []
+      "feeds": [
+        {
+          "feed_type": 51,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 44,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 167,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 18,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 1,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 23,
+          "ration_percentage": 16.65
+        }
+      ]
     },
     {
       "animal_combination": "close_up",
       "intake_option": "predict_DMI",
       "intake_value": null,
-      "feeds": []
+      "feeds": [
+        {
+          "feed_type": 51,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 44,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 167,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 18,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 1,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 23,
+          "ration_percentage": 16.65
+        }
+      ]
     },
     {
       "animal_combination": "lac_cow",

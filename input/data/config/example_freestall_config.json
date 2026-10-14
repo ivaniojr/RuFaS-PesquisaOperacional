@@ -3,7 +3,7 @@
     "end_date": "2019:365",
     "set_seed": true,
     "simulation_type": "full_farm",
-    "nutrient_standard": "NRC",
+    "nutrient_standard": "NASEM",
     "FIPS_county_code": 55025,
     "include_detailed_values": false,
     "optimization_mode": "nonlinear"

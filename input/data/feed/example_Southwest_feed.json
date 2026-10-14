@@ -1,48 +1,48 @@
 {
   "feeds": [
     {
-      "feed_type": 44,
-      "purchased_feed_cost": 0.5,
-      "buffer": 0.15,
-      "runtime_purchase_allowance": 1000.0,
-      "advance_purchase_allowance": 1000000.0,
-      "planning_cycle_allowance": 1000.0
-    },
-    {
       "feed_type": 51,
-      "purchased_feed_cost": 0.01,
+      "purchased_feed_cost": 0.045,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
       "planning_cycle_allowance": 1000.0
     },
     {
-      "feed_type": 95,
-      "purchased_feed_cost": 0.01,
+      "feed_type": 44,
+      "purchased_feed_cost": 0.18,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
       "planning_cycle_allowance": 1000.0
     },
     {
-      "feed_type": 100,
-      "purchased_feed_cost": 0.01,
+      "feed_type": 167,
+      "purchased_feed_cost": 0.38,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
       "planning_cycle_allowance": 1000.0
     },
     {
-      "feed_type": 108,
-      "purchased_feed_cost": 0.01,
+      "feed_type": 18,
+      "purchased_feed_cost": 0.12,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
       "planning_cycle_allowance": 1000.0
     },
     {
-      "feed_type": 202,
-      "purchased_feed_cost": 0.01,
+      "feed_type": 23,
+      "purchased_feed_cost": 0.28,
+      "buffer": 0.15,
+      "runtime_purchase_allowance": 1000.0,
+      "advance_purchase_allowance": 1000000.0,
+      "planning_cycle_allowance": 1000.0
+    },
+    {
+      "feed_type": 176,
+      "purchased_feed_cost": 0.24,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
@@ -57,16 +57,8 @@
       "planning_cycle_allowance": 1000.0
     },
     {
-      "feed_type": 301,
-      "purchased_feed_cost": 1.0,
-      "buffer": 0.15,
-      "runtime_purchase_allowance": 1000.0,
-      "advance_purchase_allowance": 1000000.0,
-      "planning_cycle_allowance": 1000.0
-    },
-    {
-      "feed_type": 305,
-      "purchased_feed_cost": 0.5,
+      "feed_type": 202,
+      "purchased_feed_cost": 0.01,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
@@ -86,11 +78,11 @@
       "feeds": [
         {
           "feed_type": 202,
-          "ration_percentage": 50
+          "ration_percentage": 50.0
         },
         {
           "feed_type": 216,
-          "ration_percentage": 50
+          "ration_percentage": 50.0
         }
       ]
     },
@@ -100,28 +92,28 @@
       "intake_value": null,
       "feeds": [
         {
-          "feed_type": 44,
-          "ration_percentage": 2.75
-        },
-        {
           "feed_type": 51,
-          "ration_percentage": 17.22
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 95,
-          "ration_percentage": 26.08
+          "feed_type": 44,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 108,
-          "ration_percentage": 31.34
+          "feed_type": 167,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 301,
-          "ration_percentage": 2.39
+          "feed_type": 18,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 305,
-          "ration_percentage": 20.22
+          "feed_type": 23,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 176,
+          "ration_percentage": 16.650000000000002
         }
       ]
     },
@@ -131,32 +123,28 @@
       "intake_value": null,
       "feeds": [
         {
-          "feed_type": 44,
-          "ration_percentage": 2.73
-        },
-        {
           "feed_type": 51,
-          "ration_percentage": 20.53
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 95,
-          "ration_percentage": 18.97
+          "feed_type": 44,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 100,
-          "ration_percentage": 18.97
+          "feed_type": 167,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 108,
-          "ration_percentage": 18.35
+          "feed_type": 18,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 301,
-          "ration_percentage": 1.95
+          "feed_type": 23,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 305,
-          "ration_percentage": 18.5
+          "feed_type": 176,
+          "ration_percentage": 16.650000000000002
         }
       ]
     },
@@ -166,28 +154,28 @@
       "intake_value": null,
       "feeds": [
         {
-          "feed_type": 44,
-          "ration_percentage": 19.71
-        },
-        {
           "feed_type": 51,
-          "ration_percentage": 23.29
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 108,
-          "ration_percentage": 18.04
+          "feed_type": 44,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 100,
-          "ration_percentage": 5.5
+          "feed_type": 167,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 301,
-          "ration_percentage": 3.39
+          "feed_type": 18,
+          "ration_percentage": 16.67
         },
         {
-          "feed_type": 305,
-          "ration_percentage": 30.07
+          "feed_type": 23,
+          "ration_percentage": 16.67
+        },
+        {
+          "feed_type": 176,
+          "ration_percentage": 16.65
         }
       ]
     }
