@@ -1,6 +1,7 @@
 {
-    "name": "Fazenda_Macau",
-    "slug": "GO_macau",
+    "name": "Fazenda_Ouro_Preto",
+    "slug": "GO_OURO_PRETO",
+    "farm_code": "GO_OURO_PRETO",
     "weather_file": "input/data/weather/BR_GO_weather.csv",
     "scenario_profile": "Conservador (100 vacas, foco em estabilidade)",
     "nutrient_standard": "NASEM",
@@ -11,5 +12,5 @@
     "phosphorus_requirement_buffer": 50.0,
     "methane_mitigation_method": "3-NOP",
     "methane_additive_amount": 90.0,
-    "feed_file": "input/data/feed/example_Southwest_feed.json"
+    "feed_file": "input/data/feed/example_Northeast_feed.json"
 }

@@ -213,6 +213,9 @@ def get_campo_dourado_scenario_info(base_dir: Path) -> Dict[str, Any]:
         except Exception:
             pass
 
+    if "farm_code" not in data:
+        data["farm_code"] = str(data.get("slug") or "GO_MACAU").upper()
+
     # Carrega estados ativos reais dos arquivos
     active_feed = get_active_feed_rel_path(base_dir)
     meta_path = base_dir / "input" / "metadata" / "example_animals_only_metadata.json"
@@ -320,8 +323,12 @@ def apply_campo_dourado_scenario(base_dir: Path, params: Optional[Dict[str, Any]
     if params:
         if "name" in params and params["name"]:
             current["name"] = str(params["name"]).strip()
-        if "slug" in params and params["slug"]:
+        if "farm_code" in params and params["farm_code"]:
+            current["farm_code"] = str(params["farm_code"]).strip().upper()
+            current["slug"] = current["farm_code"]
+        elif "slug" in params and params["slug"]:
             current["slug"] = str(params["slug"]).strip()
+            current["farm_code"] = current["slug"].upper()
         if "weather_file" in params and params["weather_file"]:
             current["weather_file"] = str(params["weather_file"]).strip()
         if "scenario_profile" in params and params["scenario_profile"]:
@@ -370,9 +377,11 @@ def apply_campo_dourado_scenario(base_dir: Path, params: Optional[Dict[str, Any]
             current["feed_file"] = str(params["feed_file"]).strip()
 
     # Salva no arquivo de persistência de cenário ativo
+    f_code = current.get("farm_code") or str(current.get("slug", "GO_MACAU")).upper()
     save_data = {
         "name": current["name"],
-        "slug": current["slug"],
+        "slug": current.get("slug", f_code),
+        "farm_code": f_code,
         "weather_file": current["weather_file"],
         "scenario_profile": current["scenario_profile"],
         "nutrient_standard": current["nutrient_standard"],
@@ -601,7 +610,7 @@ def analyze_po_results(base_dir: Path, milk_price: float = 0.45) -> Dict[str, An
         return {"has_results": False, "message": "Nenhum arquivo CSV encontrado em output/CSVs."}
 
     latest_csv = max(csv_files, key=os.path.getmtime)
-    df = pd.read_csv(latest_csv)
+    df = pd.read_csv(latest_csv, low_memory=False)
     feed_names = get_all_feed_names(base_dir)
     feed_prices = get_feed_prices(base_dir)
 

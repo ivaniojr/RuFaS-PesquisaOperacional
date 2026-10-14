@@ -93,6 +93,8 @@ function setupTabs() {
         loadResults();
       } else if (targetId === "tab-po") {
         loadPOAnalytics();
+      } else if (targetId === "tab-history") {
+        loadSimulationHistory();
       }
     });
   });
@@ -134,6 +136,26 @@ function setupEventListeners() {
     btnClear.addEventListener("click", () => {
       const cons = document.getElementById("console-output");
       if (cons) cons.textContent = "";
+    });
+  }
+
+  // Histórico de Simulações Listeners
+  const btnRefreshHistory = document.getElementById("btn-refresh-history");
+  if (btnRefreshHistory) btnRefreshHistory.addEventListener("click", loadSimulationHistory);
+
+  const btnViewArchiveHistory = document.getElementById("btn-view-archive-history");
+  if (btnViewArchiveHistory) {
+    btnViewArchiveHistory.addEventListener("click", () => {
+      switchTab("tab-history");
+    });
+  }
+
+  const btnOpenArchiveFolder = document.getElementById("btn-open-archive-folder");
+  if (btnOpenArchiveFolder) {
+    btnOpenArchiveFolder.addEventListener("click", () => {
+      if (lastArchivedFolderName) {
+        openArchiveFolder(lastArchivedFolderName);
+      }
     });
   }
 
@@ -316,8 +338,9 @@ function setupEventListeners() {
       btnApplyScenario.innerHTML = "⏳ Salvando e Aplicando...";
 
       const payload = {
-        name: document.getElementById("scenario-param-name")?.value?.trim() || "Faz. Campo Dourado (Goiás)",
-        slug: document.getElementById("scenario-param-slug")?.value?.trim() || "GO_campo_dourado",
+        name: document.getElementById("scenario-param-name")?.value?.trim() || "Fazenda Macau",
+        slug: document.getElementById("scenario-param-slug")?.value?.trim()?.toUpperCase() || "GO_MACAU",
+        farm_code: document.getElementById("scenario-param-slug")?.value?.trim()?.toUpperCase() || "GO_MACAU",
         weather_file: document.getElementById("scenario-param-weather")?.value || "input/data/weather/BR_GO_weather.csv",
         scenario_profile: document.getElementById("scenario-param-profile")?.value?.trim() || "Conservador (100 vacas, foco em estabilidade)",
         nutrient_standard: document.getElementById("scenario-param-nutrient")?.value || "NASEM",
@@ -415,8 +438,8 @@ async function loadConfig() {
       if (document.getElementById("scenario-param-name") && s.name) {
         document.getElementById("scenario-param-name").value = s.name;
       }
-      if (document.getElementById("scenario-param-slug") && s.slug) {
-        document.getElementById("scenario-param-slug").value = s.slug;
+      if (document.getElementById("scenario-param-slug") && (s.farm_code || s.slug)) {
+        document.getElementById("scenario-param-slug").value = (s.farm_code || s.slug).toUpperCase();
       }
       if (document.getElementById("scenario-param-weather") && (s.weather_file || s.active_weather_file)) {
         document.getElementById("scenario-param-weather").value = s.active_weather_file || s.weather_file;
@@ -809,6 +832,9 @@ async function checkStatus() {
       if (data.exit_code === 0) {
         loadResults();
         loadPOAnalytics();
+        if (data.last_archived) {
+          displayArchivedNotification(data.last_archived);
+        }
       }
     }
   } catch (err) {
@@ -1361,3 +1387,170 @@ function renderSolverComparisonTable(lpDiet, nlpDiet) {
     tbody.appendChild(tr);
   });
 }
+
+// 7. Histórico e Arquivamento de Simulações
+let lastArchivedFolderName = null;
+let allArchivedSimulations = [];
+
+function displayArchivedNotification(manifest) {
+  const card = document.getElementById("run-archive-card");
+  const title = document.getElementById("archive-card-title");
+  const desc = document.getElementById("archive-card-desc");
+  if (!card) return;
+
+  lastArchivedFolderName = manifest.folder_name;
+  const simCode = manifest.simulation_code || manifest.simulation_id || "";
+  if (title) {
+    title.innerHTML = `Simulação <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-family: monospace; font-size: 13px; font-weight: 700;">${simCode}</span> da "${manifest.farm_name}" Salva!`;
+  }
+  if (desc) {
+    desc.textContent = `📁 Pasta: ${manifest.relative_path} (${manifest.simulated_days} dias simulados, ${manifest.duration_seconds}s)`;
+  }
+  card.style.display = "block";
+  showToast(`Simulação [${simCode}] arquivada com sucesso!`, "success");
+}
+
+async function openArchiveFolder(folderName) {
+  if (!folderName) return;
+  try {
+    showToast(`Solicitando abertura da pasta no explorador...`, "info");
+    const res = await fetch(`/api/simulations/open_folder/${encodeURIComponent(folderName)}`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Pasta aberta no sistema!`, "success");
+    } else {
+      showToast(`Aviso: ${data.error || "Não foi possível abrir automaticamente"}`, "warning");
+    }
+  } catch (err) {
+    console.error("Erro ao abrir pasta:", err);
+    showToast("Erro ao abrir pasta da simulação", "error");
+  }
+}
+
+async function loadSimulationHistory() {
+  const loading = document.getElementById("history-loading");
+  const empty = document.getElementById("history-empty");
+  const tableCont = document.getElementById("history-table-container");
+  const tbody = document.getElementById("table-history-body");
+  const farmFilter = document.getElementById("select-history-farm-filter");
+
+  if (loading) loading.style.display = "block";
+  if (empty) empty.style.display = "none";
+  if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-dim);">Carregando simulações...</td></tr>`;
+
+  try {
+    const res = await fetch("/api/simulations/history");
+    const list = await res.json();
+    allArchivedSimulations = Array.isArray(list) ? list : [];
+
+    if (loading) loading.style.display = "none";
+
+    if (allArchivedSimulations.length === 0) {
+      if (empty) empty.style.display = "block";
+      if (tableCont) tableCont.style.display = "none";
+      return;
+    }
+
+    // Popula o seletor de filtros com as fazendas disponíveis
+    if (farmFilter) {
+      const currentSelected = farmFilter.value;
+      const farms = new Map();
+      allArchivedSimulations.forEach(s => {
+        const fCode = s.farm_code || s.farm_slug || "FAZ";
+        const fName = s.farm_name || fCode;
+        if (!farms.has(fCode)) farms.set(fCode, fName);
+      });
+
+      farmFilter.innerHTML = `<option value="">Todas as Fazendas (${allArchivedSimulations.length})</option>`;
+      farms.forEach((fName, fCode) => {
+        const opt = document.createElement("option");
+        opt.value = fCode;
+        opt.textContent = `${fCode} - ${fName}`;
+        farmFilter.appendChild(opt);
+      });
+      if (currentSelected && farms.has(currentSelected)) {
+        farmFilter.value = currentSelected;
+      }
+
+      farmFilter.onchange = () => renderHistoryTable(farmFilter.value);
+    }
+
+    renderHistoryTable(farmFilter ? farmFilter.value : "");
+  } catch (err) {
+    console.error("Erro ao carregar histórico:", err);
+    if (loading) loading.style.display = "none";
+    if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #f87171;">Erro ao carregar histórico: ${err}</td></tr>`;
+  }
+}
+
+function renderHistoryTable(filterFarmCode = "") {
+  const tbody = document.getElementById("table-history-body");
+  const empty = document.getElementById("history-empty");
+  const tableCont = document.getElementById("history-table-container");
+  if (!tbody) return;
+
+  const filtered = filterFarmCode
+    ? allArchivedSimulations.filter(s => (s.farm_code === filterFarmCode || s.farm_slug === filterFarmCode))
+    : allArchivedSimulations;
+
+  if (filtered.length === 0) {
+    if (empty) empty.style.display = "block";
+    if (tableCont) tableCont.style.display = "none";
+    return;
+  }
+
+  if (empty) empty.style.display = "none";
+  if (tableCont) tableCont.style.display = "block";
+  tbody.innerHTML = "";
+
+  filtered.forEach(sim => {
+    const tr = document.createElement("tr");
+    const kpis = sim.kpis || {};
+    const costStr = kpis.cost_per_cow_day ? `$ ${kpis.cost_per_cow_day.toFixed(2)}` : "-";
+    const iofcStr = kpis.iofc_per_cow_day ? `$ ${kpis.iofc_per_cow_day.toFixed(2)}` : "-";
+    const isSuccess = sim.status === "success" && sim.exit_code === 0;
+
+    tr.innerHTML = `
+      <td>
+        <span class="badge" style="background: rgba(59, 130, 246, 0.18); color: #60a5fa; font-weight: 700; font-family: monospace; font-size: 12px; letter-spacing: 0.5px; border: 1px solid rgba(59, 130, 246, 0.3);">
+          ${sim.simulation_code || sim.simulation_id}
+        </span>
+        <div style="font-size: 11px; color: var(--text-dim); font-family: monospace; margin-top: 3px;">
+          Rodada #${sim.run_number || 1}
+        </div>
+      </td>
+      <td>
+        <strong>${sim.farm_name || "Fazenda"}</strong>
+        <div style="font-size: 11px; color: var(--text-dim); font-family: monospace;">${sim.folder_name}</div>
+      </td>
+      <td style="white-space: nowrap;">
+        <span>📅 ${sim.execution_date}</span>
+        <span style="color: var(--text-dim); margin-left: 4px;">⏰ ${sim.execution_time}</span>
+      </td>
+      <td>${sim.duration_seconds ? sim.duration_seconds + "s" : "-"}</td>
+      <td>
+        <span class="badge" style="background: ${sim.optimization_mode === 'linear' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)'}; color: ${sim.optimization_mode === 'linear' ? '#60a5fa' : '#34d399'}; text-transform: uppercase;">
+          ${sim.optimization_mode || "NLP"}
+        </span>
+      </td>
+      <td><span class="badge badge-subtle">${sim.nutrient_standard || "NASEM"}</span></td>
+      <td>${sim.simulated_days || 31} d</td>
+      <td style="font-weight: 600; color: #f59e0b;">${costStr}</td>
+      <td style="font-weight: 600; color: #10b981;">${iofcStr}</td>
+      <td>
+        <span class="badge ${isSuccess ? 'badge-success' : 'badge-danger'}" style="background: ${isSuccess ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; color: ${isSuccess ? '#34d399' : '#f87171'};">
+          ${isSuccess ? '✅ Sucesso' : '❌ Falhou'}
+        </span>
+      </td>
+      <td style="text-align: center; white-space: nowrap;">
+        <button class="btn btn-secondary btn-sm" onclick="openArchiveFolder('${sim.folder_name}')" title="Abre a pasta no explorador de arquivos do sistema" style="padding: 5px 10px; font-size: 12px; font-weight: 500;">
+          📂 Abrir Pasta
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+

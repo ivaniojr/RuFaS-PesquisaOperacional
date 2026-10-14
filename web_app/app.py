@@ -6,6 +6,7 @@ import re
 import csv
 import threading
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,6 +28,12 @@ try:
         generate_po_csv_report,
         compare_solvers
     )
+    from web_app.simulation_tracker import (
+        archive_simulation,
+        list_archived_simulations,
+        get_archived_simulation_details,
+        open_simulation_folder
+    )
 except ModuleNotFoundError:
     from po_analytics import (
         get_all_feed_names,
@@ -40,6 +47,12 @@ except ModuleNotFoundError:
         run_sensitivity_analysis,
         generate_po_csv_report,
         compare_solvers
+    )
+    from simulation_tracker import (
+        archive_simulation,
+        list_archived_simulations,
+        get_archived_simulation_details,
+        open_simulation_folder
     )
 
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -62,7 +75,8 @@ sim_state = {
     "status_text": "Pronto",
     "logs": [],
     "exit_code": None,
-    "error": None
+    "error": None,
+    "last_archived": None
 }
 
 sim_lock = threading.Lock()
@@ -276,9 +290,11 @@ def save_config():
 
 def run_simulation_worker():
     global sim_state
+    sim_start_time = datetime.now()
     try:
         # Pass current optimization mode explicitly in child process environment
         env_vars = os.environ.copy()
+        env_vars["RUFAS_SUBPROCESS_TRACKED"] = "1"
         try:
             cfg_path = BASE_DIR / "input" / "data" / "config" / "example_animals_only_config.json"
             if cfg_path.exists():
@@ -324,12 +340,28 @@ def run_simulation_worker():
                     sim_state["status_text"] = f"Simulando dia {cur} de {tot} ({sim_state['progress']}%)"
 
         process.wait()
+
+        # Arquiva a simulação na pasta específica da fazenda, data e horário
+        archived_manifest = None
+        try:
+            archived_manifest = archive_simulation(
+                base_dir=BASE_DIR,
+                execution_logs=list(sim_state["logs"]),
+                start_time=sim_start_time,
+                end_time=datetime.now(),
+                exit_code=process.returncode
+            )
+        except Exception as arch_err:
+            print(f"[SimulationTracker] Erro ao arquivar simulação: {arch_err}")
+
         with sim_lock:
             sim_state["exit_code"] = process.returncode
             sim_state["running"] = False
+            sim_state["last_archived"] = archived_manifest
             if process.returncode == 0:
                 sim_state["progress"] = 100
-                sim_state["status_text"] = "Simulação concluída com sucesso!"
+                f_name = archived_manifest.get("folder_name") if archived_manifest else "output/simulacoes"
+                sim_state["status_text"] = f"Simulação concluída e salva em: {f_name}"
             else:
                 sim_state["status_text"] = f"Erro na simulação (Código {process.returncode})"
     except Exception as e:
@@ -496,5 +528,32 @@ def get_po_compare_solvers():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/simulations/history", methods=["GET"])
+def get_simulations_history():
+    try:
+        sims = list_archived_simulations(BASE_DIR)
+        return jsonify(sims)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/simulations/details/<folder_name>", methods=["GET"])
+def get_simulation_details_route(folder_name):
+    try:
+        data = get_archived_simulation_details(BASE_DIR, folder_name)
+        if not data:
+            return jsonify({"error": "Simulação não encontrada"}), 404
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/simulations/open_folder/<folder_name>", methods=["POST"])
+def open_simulation_folder_route(folder_name):
+    try:
+        res = open_simulation_folder(BASE_DIR, folder_name)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=False)
+

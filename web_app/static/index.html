@@ -46,6 +46,9 @@
       <button class="tab-btn" data-tab="tab-po">
         <span class="tab-icon">📐</span> Pesquisa Operacional & Sensibilidade
       </button>
+      <button class="tab-btn" data-tab="tab-history">
+        <span class="tab-icon">📁</span> Histórico de Simulações
+      </button>
     </nav>
 
     <!-- TAB 1: Configuração & Insumos -->
@@ -169,16 +172,16 @@
                   <td><code class="code-tag">farm_name</code></td>
                 </tr>
 
-                <!-- 2. Slug -->
+                <!-- 2. Código da Fazenda / Slug -->
                 <tr>
                   <td>
-                    <strong>Slug</strong>
-                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Código técnico identificador único</div>
+                    <strong>Código da Fazenda</strong>
+                    <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">Identificador único em maiúsculas (ex: GO_MACAU, FAZ_01)</div>
                   </td>
                   <td>
-                    <input type="text" id="scenario-param-slug" class="form-control" value="GO_campo_dourado" placeholder="Ex: GO_campo_dourado" style="font-family: monospace;">
+                    <input type="text" id="scenario-param-slug" class="form-control" value="GO_MACAU" placeholder="Ex: GO_MACAU" style="font-family: monospace; font-weight: 600; text-transform: uppercase;">
                   </td>
-                  <td><code class="code-tag">scenario_slug</code></td>
+                  <td><code class="code-tag">farm_code</code></td>
                 </tr>
 
                 <!-- 3. Estado / Clima -->
@@ -467,6 +470,29 @@
           <div class="console-wrapper mt-3">
             <div class="console-header">Terminal de Saída (stdout)</div>
             <pre class="console-body" id="console-output">Aguardando início da simulação...</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card de Notificação da Pasta Arquivada -->
+      <div id="run-archive-card" class="card mt-3" style="display: none; border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.05);">
+        <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 22px;">💾</span>
+              <div>
+                <strong id="archive-card-title" style="font-size: 15px; color: var(--text-color);">Simulação Salva com Sucesso!</strong>
+                <p id="archive-card-desc" style="font-size: 13px; color: var(--text-dim); margin-top: 3px; font-family: monospace;"></p>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-secondary" id="btn-open-archive-folder" style="font-size: 13px; font-weight: 500;">
+              📂 Abrir Pasta da Simulação
+            </button>
+            <button class="btn btn-primary" id="btn-view-archive-history" style="font-size: 13px; font-weight: 600;">
+              📁 Ver no Histórico
+            </button>
           </div>
         </div>
       </div>
@@ -769,6 +795,66 @@
               O modelo <strong>Linear (LP / HiGHS Simplex)</strong> trata os teores nutricionais (energia líquida e proteína metabolizável) como parâmetros constantes independentes do nível de ingestão.
               Já o modelo <strong>Não-Linear (NLP / SLSQP)</strong> incorpora os descontos de digestibilidade da taxa de passagem (*intake discount* do NRC/NASEM 2021): à medida que o animal consome mais matéria seca, o tempo de permanência no rúmen diminui, reduzindo o aproveitamento energético.
             </p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 5: Histórico de Simulações -->
+    <main class="tab-content" id="tab-history">
+      <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 26px;">📁</span>
+              <div>
+                <h2>Histórico de Simulações Arquivadas</h2>
+                <p class="subtitle">Repositório de simulações salvas por fazenda, data e horário com parâmetros, resultados e relatórios.</p>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 13px; color: var(--text-dim);">🔍 Filtrar:</span>
+              <select id="select-history-farm-filter" class="form-control" style="font-size: 13px; padding: 5px 10px; width: auto; min-width: 170px;">
+                <option value="">Todas as Fazendas</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary" id="btn-refresh-history" style="font-size: 13px; font-weight: 500;">
+              🔄 Atualizar Histórico
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="history-loading" style="text-align: center; padding: 40px; color: var(--text-dim); display: none;">
+            <span>⏳ Carregando histórico de simulações...</span>
+          </div>
+          <div id="history-empty" style="text-align: center; padding: 50px 20px; color: var(--text-dim); display: none;">
+            <span style="font-size: 40px; display: block; margin-bottom: 10px;">📂</span>
+            <h3>Nenhuma simulação arquivada até o momento</h3>
+            <p style="margin-top: 6px; font-size: 14px;">Quando você executar uma simulação, ela será automaticamente salva em uma pasta com o código da fazenda e data/hora.</p>
+          </div>
+          <div class="table-container" id="history-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Código / ID</th>
+                  <th>Fazenda / Cenário</th>
+                  <th>Data & Horário</th>
+                  <th>Duração</th>
+                  <th>Solver</th>
+                  <th>Padrão</th>
+                  <th>Dias</th>
+                  <th>Custo Dieta ($/vaca/d)</th>
+                  <th>IOFC ($/vaca/d)</th>
+                  <th>Status</th>
+                  <th style="text-align: center;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="table-history-body">
+                <tr><td colspan="10" style="text-align: center; color: var(--text-dim);">Carregando simulações...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
