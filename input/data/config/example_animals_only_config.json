@@ -6,5 +6,5 @@
     "nutrient_standard": "NRC",
     "FIPS_county_code": 55025,
     "include_detailed_values": false,
-    "optimization_mode": "nonlinear"
+    "optimization_mode": "linear"
 }
