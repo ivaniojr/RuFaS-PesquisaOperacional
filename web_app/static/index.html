@@ -500,6 +500,9 @@
 
     <!-- TAB 3: Dashboard Geral -->
     <main class="tab-content" id="tab-dashboard">
+      <!-- Alerta de Contingência de Formulação de Ração -->
+      <div id="dashboard-contingency-alert" style="display: none; margin-bottom: 20px;"></div>
+
       <div class="kpi-grid">
         <div class="card kpi-card">
           <span class="kpi-icon">🥛</span>
@@ -614,6 +617,9 @@
           <button class="btn btn-outline" id="btn-export-po-csv">📥 Exportar Relatório (CSV)</button>
         </div>
       </div>
+
+      <!-- Alerta de Contingência de Formulação de Ração -->
+      <div id="po-contingency-alert" style="display: none; margin-bottom: 20px;"></div>
 
       <!-- KPIs Econômicos de PO -->
       <div class="kpi-grid">
@@ -740,6 +746,9 @@
           </button>
         </div>
         <div class="card-body">
+          <!-- Alerta Visual para Falha de Solvers -->
+          <div id="solver-comparison-alert-container" style="display: none; margin-bottom: 20px;"></div>
+
           <!-- KPI Cards Comparativos -->
           <div class="kpi-grid">
             <div class="card kpi-card" style="border-color: rgba(59, 130, 246, 0.4);">
@@ -838,21 +847,15 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Código / ID</th>
-                  <th>Fazenda / Cenário</th>
-                  <th>Data & Horário</th>
-                  <th>Duração</th>
-                  <th>Solver</th>
-                  <th>Padrão</th>
-                  <th>Dias</th>
-                  <th>Custo Dieta ($/vaca/d)</th>
-                  <th>IOFC ($/vaca/d)</th>
-                  <th>Status</th>
-                  <th style="text-align: center;">Ações</th>
+                  <th style="width: 140px;">Simulação / ID</th>
+                  <th style="min-width: 260px;">Dados da Simulação</th>
+                  <th style="min-width: 250px;">Indicadores Zootécnicos (Produção & Rúmen)</th>
+                  <th style="min-width: 250px;">Indicadores Econômicos & PO ($)</th>
+                  <th style="width: 130px; text-align: center;">Ações</th>
                 </tr>
               </thead>
               <tbody id="table-history-body">
-                <tr><td colspan="10" style="text-align: center; color: var(--text-dim);">Carregando simulações...</td></tr>
+                <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">Carregando simulações...</td></tr>
               </tbody>
             </table>
           </div>

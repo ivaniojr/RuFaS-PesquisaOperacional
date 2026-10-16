@@ -5,6 +5,7 @@ Instituto Federal de Goiás (IFG) - Pesquisa Operacional
 """
 
 import os
+import re
 import csv
 import json
 import glob
@@ -455,15 +456,15 @@ def apply_campo_dourado_scenario(base_dir: Path, params: Optional[Dict[str, Any]
 
     if standard_changed:
         # Quando o padrão nutricional muda (ex: NASEM -> NRC ou vice-versa),
-        # limpa a lista de insumos ativos da ração para permitir recarga limpa da biblioteca correspondente
+        # carrega automaticamente a dieta balanceada executável para o novo padrão
         try:
-            update_feeds_file(base_dir, [], feed_rel_path=current["feed_file"])
+            load_preset_feeds_for_standard(base_dir, nutrient_standard=current["nutrient_standard"])
         except Exception as e:
-            print(f"Erro ao limpar insumos na troca de padrão: {e}")
+            print(f"Erro ao carregar dieta sugerida na troca de padrão: {e}")
 
     success_msg = f"Cenário '{current['name']}' ({current['slug']}) salvo e aplicado com sucesso ao modelo RuFaS!"
     if standard_changed:
-        success_msg += f" O padrão foi alterado para {current['nutrient_standard']} e a tabela de insumos foi limpa para a nova biblioteca."
+        success_msg += f" O padrão foi alterado para {current['nutrient_standard']} e a dieta padrão executável correspondente foi carregada com sucesso."
 
     return {
         "success": True,
@@ -533,18 +534,57 @@ def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]], feed_rel
         # Filtra insumos que foram removidos do top-level
         valid_feeds = [f for f in cur_feeds if f.get("feed_type") in all_configured_ids]
 
-        # Para categorias de ruminantes/animais adultos (lac_cow, growing, close_up),
-        # assegura que todos os insumos ativos da fazenda estejam disponíveis para formulação
+        # Proporções nutricionais zootecnicamente balanceadas para cada categoria
+        IDEAL_BASE_PROPORTIONS = {
+            "lac_cow": {
+                51: 45.0,  # Corn silage
+                44: 25.0,  # Corn grain
+                167: 16.0, # Soybean meal
+                18: 10.0,  # Bermudagrass hay
+                1: 2.0,    # Alfalfa meal
+                230: 0.8,  # Calcium carbonate
+                231: 0.8,  # Calcium phosphate di
+                239: 0.4,  # Salt
+            },
+            "growing": {
+                51: 60.0,  # Corn silage
+                18: 30.0,  # Bermudagrass hay
+                44: 8.0,   # Corn grain
+                167: 0.0,  # 0% soybean meal (evita violar protein_constraint_upper em novilhas)
+                230: 1.0,  # Calcium carbonate
+                231: 0.6,  # Calcium phosphate di
+                239: 0.4,  # Salt
+            },
+            "close_up": {
+                51: 55.0,  # Corn silage
+                18: 30.0,  # Bermudagrass hay
+                44: 10.0,  # Corn grain
+                167: 3.0,  # Soybean meal
+                230: 1.0,  # Calcium carbonate
+                231: 0.6,  # Calcium phosphate di
+                239: 0.4,  # Salt
+            }
+        }
+        mineral_ids = {229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 266}
+
+        # Para categorias de ruminantes (lac_cow, growing, close_up),
+        # assegura que todos os insumos ativos da fazenda estejam disponíveis para formulação com proporções zootécnicas
         if combo in ["lac_cow", "growing", "close_up"]:
-            combo_feed_ids = {f["feed_type"] for f in valid_feeds}
+            valid_feeds = []
+            prop_map = IDEAL_BASE_PROPORTIONS.get(combo, {})
             for f_item in updated_feeds:
                 f_type = f_item["feed_type"]
-                if f_type not in essential_calf_ids and f_type not in combo_feed_ids:
+                if f_type not in essential_calf_ids:
+                    if f_type in prop_map:
+                        pct = prop_map[f_type]
+                    elif f_type in mineral_ids:
+                        pct = 0.5
+                    else:
+                        pct = 5.0
                     valid_feeds.append({
                         "feed_type": f_type,
-                        "ration_percentage": 5.0
+                        "ration_percentage": pct
                     })
-                    combo_feed_ids.add(f_type)
 
         # Renormaliza porcentagens para somar exatamente 100.0%
         if valid_feeds:
@@ -574,45 +614,193 @@ def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]], feed_rel
 
 
 def load_preset_feeds_for_standard(base_dir: Path, nutrient_standard: str = "NASEM") -> Dict[str, Any]:
-    """Carrega uma dieta pré-definida e balanceada de alimentos para o padrão especificado (NRC ou NASEM)."""
+    """Carrega uma dieta pré-definida e balanceada de alimentos para o padrão especificado (NRC ou NASEM), garantindo convergência nos dois solvers."""
     std = (nutrient_standard or "NASEM").strip().upper()
     if std == "NRC":
         preset_feeds = [
-            {"id": 51, "cost": 0.045, "buffer": 0.15},   # Corn silage, mid maturity
-            {"id": 44, "cost": 0.180, "buffer": 0.15},   # Corn grain, ground, dry
-            {"id": 167, "cost": 0.380, "buffer": 0.15},  # Soybean meal, solvent 48% CP
-            {"id": 18, "cost": 0.120, "buffer": 0.15},   # Bermudagrass / Grass Hay
-            {"id": 1, "cost": 0.220, "buffer": 0.15},    # Alfalfa meal
-            {"id": 23, "cost": 0.280, "buffer": 0.15},   # Canola meal
+            {"id": 51, "cost": 0.045, "buffer": 0.15},   # Corn silage, mid maturity (Forragem volumosa)
+            {"id": 44, "cost": 0.180, "buffer": 0.15},   # Corn grain, ground, dry (Concentrado energético)
+            {"id": 167, "cost": 0.380, "buffer": 0.15},  # Soybean meal, solvent 48% CP (Concentrado proteico)
+            {"id": 18, "cost": 0.120, "buffer": 0.15},   # Bermudagrass / Grass Hay (Fibra efetiva / FDN)
+            {"id": 1, "cost": 0.220, "buffer": 0.15},    # Alfalfa meal (Leguminosa / Proteína / Cálcio natural)
+            {"id": 230, "cost": 0.080, "buffer": 0.15},  # Calcium carbonate (Fonte de Cálcio mineral puro 39.4%)
+            {"id": 231, "cost": 0.250, "buffer": 0.15},  # Calcium phosphate di (Fonte de Cálcio 22% e Fósforo 19.3%)
+            {"id": 239, "cost": 0.060, "buffer": 0.15},  # Sodium chloride (Sal mineral / Eletrólitos)
         ]
     else:
         preset_feeds = [
-            {"id": 51, "cost": 0.045, "buffer": 0.15},   # Corn silage, mid maturity
-            {"id": 44, "cost": 0.180, "buffer": 0.15},   # Corn grain, ground, dry
-            {"id": 167, "cost": 0.380, "buffer": 0.15},  # Soybean meal, solvent 48CP
-            {"id": 18, "cost": 0.120, "buffer": 0.15},   # Bermudagrass Hay
-            {"id": 23, "cost": 0.280, "buffer": 0.15},   # Canola meal
-            {"id": 176, "cost": 0.240, "buffer": 0.15},  # Corn distillers grains
+            {"id": 51, "cost": 0.045, "buffer": 0.15},   # Corn silage, typical mid maturity (Forragem volumosa)
+            {"id": 44, "cost": 0.180, "buffer": 0.15},   # Corn grain dry, medium grind (Concentrado energético)
+            {"id": 167, "cost": 0.380, "buffer": 0.15},  # Soybean meal, solvent 48CP (Concentrado proteico)
+            {"id": 18, "cost": 0.120, "buffer": 0.15},   # Bermudagrass hay (Fibra efetiva / FDN)
+            {"id": 1, "cost": 0.220, "buffer": 0.15},    # Alfalfa meal (Leguminosa / Cálcio natural)
+            {"id": 230, "cost": 0.080, "buffer": 0.15},  # Calcium carbonate (Fonte de Cálcio puro 39.4%)
+            {"id": 231, "cost": 0.250, "buffer": 0.15},  # Calcium phosphate di (Fonte de Cálcio 22% e Fósforo 19.3%)
+            {"id": 239, "cost": 0.060, "buffer": 0.15},  # Sodium chloride (Sal mineral / Eletrólitos)
         ]
     active_feed_rel = get_active_feed_rel_path(base_dir)
     res = update_feeds_file(base_dir, preset_feeds, feed_rel_path=active_feed_rel)
-    res["message"] = f"Dieta sugerida para {std} carregada com sucesso! ({len(preset_feeds)} insumos balanceados)"
+    res["message"] = f"Dieta sugerida para {std} carregada com sucesso! ({len(preset_feeds)} insumos balanceados com minerais Ca/P)"
     return res
 
 
-def analyze_po_results(base_dir: Path, milk_price: float = 0.45) -> Dict[str, Any]:
-    """
-    Analisa os resultados da simulação mais recente sob a ótica da Pesquisa Operacional.
-    Calcula custos diários da ração, decomposição por insumo, eficiência alimentar e IOFC.
-    """
-    csv_files = glob.glob(str(base_dir / "output" / "CSVs" / "*.csv"))
-    if not csv_files:
-        return {"has_results": False, "message": "Nenhum arquivo CSV encontrado em output/CSVs."}
+CONSTRAINT_TRANSLATIONS = {
+    "calcium_constraint": "Restrição de Cálcio (deficiência de cálcio nos insumos)",
+    "protein_constraint_upper": "Limite Superior de Proteína Bruta/Metabolizável",
+    "phosphorus_constraint": "Restrição de Fósforo",
+    "NASEM_net_energy_constraint": "Restrição de Energia Líquida (NASEM)",
+    "dmi_constraint_lower": "Consumo Mínimo de Matéria Seca",
+    "dmi_constraint_upper": "Consumo Máximo de Matéria Seca",
+    "fat_constraint_upper": "Limite Superior de Extrato Etéreo / Gordura",
+    "forage_minimum": "Mínimo de Forragem na Dieta",
+}
 
-    latest_csv = max(csv_files, key=os.path.getmtime)
+
+def check_formulation_fallback(df: pd.DataFrame, base_dir: Optional[Path] = None, specific_csv: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Verifica se a formulação automatizada de ração para vacas em lactação falhou no simulador,
+    levando o RuFaS a reutilizar a ração padrão anterior como contingência
+    ("Previous ration used because automated ration formulation failed... Used most recently formulated ration instead.").
+    """
+    fail_cols = [c for c in df.columns if "constraints_failed_dict" in c]
+    lac_fail_cols = [c for c in fail_cols if "pen_3" in c or "lac_cow" in c.lower()]
+    target_cols = lac_fail_cols
+
+    failed_constraints = set()
+    total_failures = 0
+
+    for col in target_cols:
+        non_null = df[col].dropna()
+        if not non_null.empty:
+            for val in non_null:
+                val_str = str(val).strip()
+                if val_str in ("[]", "", "None", "nan"):
+                    continue
+                matches = re.findall(r"'([a-zA-Z0-9_]+)'", val_str)
+                if matches:
+                    failed_constraints.update(matches)
+                    total_failures += 1
+                else:
+                    clean = val_str.strip("[]() ")
+                    for part in clean.split(","):
+                        p = part.strip().strip("'\"")
+                        if p:
+                            failed_constraints.add(p)
+                            total_failures += 1
+
+    # Verifica logs específicos do RuFaS apenas quando houver timestamp correspondente
+    log_indicates_fallback = False
+    if total_failures == 0 and specific_csv:
+        csv_stem = specific_csv.stem
+        ts_match = re.search(r"(\d{1,2}-[A-Za-z]{3}-\d{4}_[A-Za-z]{3}_\d{2}-\d{2})", csv_stem)
+        if not ts_match and specific_csv.parent.name == "resultados":
+            raw_files = list(specific_csv.parent.glob("*_*.csv"))
+            for rf in raw_files:
+                m = re.search(r"(\d{1,2}-[A-Za-z]{3}-\d{4}_[A-Za-z]{3}_\d{2}-\d{2})", rf.stem)
+                if m:
+                    ts_match = m
+                    break
+        ts_filter = ts_match.group(1) if ts_match else None
+
+        if ts_filter:
+            search_dirs = [
+                specific_csv.parent.parent / "logs" / "rufas_logs",
+                specific_csv.parent / "logs" / "rufas_logs",
+            ]
+            for s_dir in search_dirs:
+                if s_dir.exists():
+                    for log_file in s_dir.glob(f"*{ts_filter}*.json"):
+                        try:
+                            with open(log_file, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                                for k, v in data.items():
+                                    k_lower = k.lower()
+                                    if ("failed formulation attempt" in k_lower or "previous ration used" in k_lower) and (
+                                        "pen_3" in str(v).lower() or "lac_cow" in str(v).lower()
+                                    ):
+                                        log_indicates_fallback = True
+                                        break
+                        except Exception:
+                            pass
+                        if log_indicates_fallback:
+                            break
+                if log_indicates_fallback:
+                    break
+
+    is_fallback = (total_failures > 0) or log_indicates_fallback
+    failed_list = sorted(list(failed_constraints))
+    labels = [CONSTRAINT_TRANSLATIONS.get(c, c) for c in failed_list]
+
+    if is_fallback:
+        msg = (
+            "A formulação automatizada da ração falhou devido à violação de restrições zootécnicas. "
+            "A ração anterior/padrão foi reutilizada como contingência pelo simulador "
+            "('Previous ration used because automated ration formulation failed... Used most recently formulated ration instead.')."
+        )
+        rec = "Para permitir a formulação ótima, adicione fontes minerais (ex: Calcário Calcítico, Sal Mineral) ao catálogo de alimentos ativos ou ajuste as exigências nutricionais."
+    else:
+        msg = "Formulação ótima calculada e validada com sucesso pelo solver."
+        rec = ""
+
+    return {
+        "is_fallback": is_fallback,
+        "message": msg,
+        "failed_constraints": failed_list,
+        "failed_constraints_labels": labels,
+        "recommendation": rec,
+        "total_failures": total_failures,
+    }
+
+
+def analyze_po_results(base_dir: Path, milk_price: float = 0.45, specific_csv: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Analisa os resultados da simulação mais recente (ou CSV especificado) sob a ótica da Pesquisa Operacional.
+    Calcula custos diários da ração, decomposição por insumo, eficiência alimentar e IOFC.
+
+    REGRA ESTREITA: Caso a formulação automatizada tenha falhado e o RuFaS tenha reutilizado
+    a ração de contingência anterior ("Previous ration used because automated ration formulation failed..."),
+    NENHUM valor de KPI (DMI, custo, leite, IOFC) é gerado para evitar interpretações zootécnicas e econômicas incorretas.
+    """
+    import re
+    if specific_csv and specific_csv.exists():
+        latest_csv = str(specific_csv)
+    else:
+        csv_files = glob.glob(str(base_dir / "output" / "CSVs" / "*.csv"))
+        if not csv_files:
+            return {"has_results": False, "message": "Nenhum arquivo CSV encontrado em output/CSVs."}
+        latest_csv = max(csv_files, key=os.path.getmtime)
+
     df = pd.read_csv(latest_csv, low_memory=False)
     feed_names = get_all_feed_names(base_dir)
     feed_prices = get_feed_prices(base_dir)
+
+    # 3. Restrições e Folgas (Constraints & Slacks)
+    fail_cols = [c for c in df.columns if "constraints_failed_dict" in c]
+    binding_constraints = {}
+    for c in fail_cols:
+        for val in df[c].dropna():
+            v_str = str(val)
+            binding_constraints[v_str] = binding_constraints.get(v_str, 0) + 1
+
+    # Verifica se houve fallback para a ração anterior por falha de formulação
+    fallback_info = check_formulation_fallback(df, base_dir=base_dir, specific_csv=Path(latest_csv))
+
+    if fallback_info["is_fallback"]:
+        # NÃO GERA OS VALORES DE KPIS NEM DE DIETA ÓTIMA
+        return {
+            "has_results": True,
+            "csv_filename": Path(latest_csv).name,
+            "total_days_simulated": len(df),
+            "formulation_failed": True,
+            "fallback_used": True,
+            "fallback_message": fallback_info["message"],
+            "failed_constraints": fallback_info["failed_constraints"],
+            "failed_constraints_labels": fallback_info["failed_constraints_labels"],
+            "recommendation": fallback_info["recommendation"],
+            "diet": None,
+            "kpis": None,
+            "binding_constraints": binding_constraints,
+        }
 
     # 1. Formulação Ótima da Dieta para Vacas em Lactação (LAC_COW_PEN_3)
     diet_cols = [c for c in df.columns if "report_ration_per_animal.ration_per_animal_for_LAC_COW" in c]
@@ -670,18 +858,12 @@ def analyze_po_results(base_dir: Path, milk_price: float = 0.45) -> Dict[str, An
     milk_revenue_per_cow = milk_per_cow_daily * milk_price
     iofc = milk_revenue_per_cow - total_cost_per_cow_day
 
-    # 3. Restrições e Folgas (Constraints & Slacks)
-    fail_cols = [c for c in df.columns if "constraints_failed_dict" in c]
-    binding_constraints = {}
-    for c in fail_cols:
-        for val in df[c].dropna():
-            v_str = str(val)
-            binding_constraints[v_str] = binding_constraints.get(v_str, 0) + 1
-
     return {
         "has_results": True,
         "csv_filename": Path(latest_csv).name,
         "total_days_simulated": len(df),
+        "formulation_failed": False,
+        "fallback_used": False,
         "diet": ingredients,
         "kpis": {
             "total_dmi_kg": round(total_dmi, 2),
@@ -717,13 +899,24 @@ def run_sensitivity_analysis(
     if not po_data.get("has_results"):
         return {"error": "Nenhum resultado de simulação disponível para análise de sensibilidade."}
 
-    diet = po_data["diet"]
+    if po_data.get("formulation_failed") or po_data.get("fallback_used"):
+        return {
+            "error": (
+                "Análise de sensibilidade indisponível: A formulação automatizada da ração falhou "
+                "e o simulador reutilizou a ração de contingência anterior "
+                "('Previous ration used because automated ration formulation failed... Used most recently formulated ration instead.'). "
+                "Nenhum valor foi gerado para evitar conclusões incorretas."
+            )
+        }
+
+    diet = po_data["diet"] or []
+    kpis = po_data.get("kpis") or {}
     feed_names = get_all_feed_names(base_dir)
     feed_prices = get_feed_prices(base_dir)
 
     target_ingredient = next((item for item in diet if item["feed_id"] == feed_id), None)
-    base_cost_day = po_data["kpis"]["cost_per_cow_day"]
-    milk_per_cow = po_data["kpis"]["milk_per_cow_daily"]
+    base_cost_day = kpis.get("cost_per_cow_day", 0.0)
+    milk_per_cow = kpis.get("milk_per_cow_daily", 42.5)
 
     if target_ingredient:
         base_price = target_ingredient["price_per_kg"]
@@ -773,9 +966,9 @@ def run_sensitivity_analysis(
     }
 
 
-def generate_po_csv_report(base_dir: Path, milk_price: float = 0.45) -> str:
+def generate_po_csv_report(base_dir: Path, milk_price: float = 0.45, specific_csv: Optional[Path] = None) -> str:
     """Gera um relatório técnico estruturado em formato CSV para download e documentação acadêmica."""
-    data = analyze_po_results(base_dir, milk_price=milk_price)
+    data = analyze_po_results(base_dir, milk_price=milk_price, specific_csv=specific_csv)
     if not data.get("has_results"):
         return "Nenhum resultado disponivel.\n"
 
@@ -784,21 +977,35 @@ def generate_po_csv_report(base_dir: Path, milk_price: float = 0.45) -> str:
     lines.append(f"Arquivo de Origem;{data.get('csv_filename')}")
     lines.append(f"Dias Simulados;{data.get('total_days_simulated')}")
     lines.append("")
+
+    if data.get("formulation_failed") or data.get("fallback_used"):
+        lines.append("AVISO CRÍTICO;FORMULAÇÃO AUTOMATIZADA DE RAÇÃO FALHOU")
+        lines.append(f"Mensagem;\"{data.get('fallback_message')}\"")
+        lines.append("Situação Original;\"Previous ration used because automated ration formulation failed... Used most recently formulated ration instead.\"")
+        lines.append("Status dos Valores;NÃO GERADOS (Evita interpretações econômicas e nutricionais incorretas)")
+        lines.append("")
+        lines.append("RESTRIÇÕES ZOOTÉCNICAS QUE CAUSARAM A FALHA;")
+        for lbl in data.get("failed_constraints_labels", []):
+            lines.append(f"-;\"{lbl}\"")
+        lines.append("")
+        lines.append(f"Recomendação;\"{data.get('recommendation', '')}\"")
+        return "\n".join(lines)
+
     lines.append("1. INDICADORES GERAIS DE DESEMPENHO ZOOTÉCNICO E ECONÔMICO (KPIS)")
     lines.append("Métrica;Valor;Unidade")
-    kpis = data["kpis"]
-    lines.append(f"Consumo de Matéria Seca (DMI);{kpis['total_dmi_kg']};kg/vaca/dia")
-    lines.append(f"Custo Total da Dieta;{kpis['cost_per_cow_day']};$/vaca/dia")
-    lines.append(f"Produção Média de Leite;{kpis['milk_per_cow_daily']};kg/vaca/dia")
-    lines.append(f"Eficiência Alimentar (kg leite/kg MS);{kpis['feed_efficiency']};adimensional")
-    lines.append(f"Custo da Ração por kg de Leite;{kpis['feed_cost_per_kg_milk']};$/kg leite")
-    lines.append(f"Preço do Leite Considerado;{kpis['milk_price_assumed']};$/kg")
-    lines.append(f"Receita Diária de Leite;{kpis['milk_revenue_per_cow']};$/vaca/dia")
-    lines.append(f"Margem Sobre o Custo da Ração (IOFC);{kpis['iofc_per_cow_day']};$/vaca/dia")
+    kpis = data.get("kpis") or {}
+    lines.append(f"Consumo de Matéria Seca (DMI);{kpis.get('total_dmi_kg', '-')};kg/vaca/dia")
+    lines.append(f"Custo Total da Dieta;{kpis.get('cost_per_cow_day', '-')};$/vaca/dia")
+    lines.append(f"Produção Média de Leite;{kpis.get('milk_per_cow_daily', '-')};kg/vaca/dia")
+    lines.append(f"Eficiência Alimentar (kg leite/kg MS);{kpis.get('feed_efficiency', '-')};adimensional")
+    lines.append(f"Custo da Ração por kg de Leite;{kpis.get('feed_cost_per_kg_milk', '-')};$/kg leite")
+    lines.append(f"Preço do Leite Considerado;{kpis.get('milk_price_assumed', '-')};$/kg")
+    lines.append(f"Receita Diária de Leite;{kpis.get('milk_revenue_per_cow', '-')};$/vaca/dia")
+    lines.append(f"Margem Sobre o Custo da Ração (IOFC);{kpis.get('iofc_per_cow_day', '-')};$/vaca/dia")
     lines.append("")
     lines.append("2. COMPOSIÇÃO DA DIETA ÓTIMA (MÉTODO SLSQP)")
     lines.append("ID;Ingrediente;Consumo (kg MS);Inclusão (%);Preço Unitário ($/kg);Custo Diário ($/vaca);Part. no Custo (%)")
-    for ing in data["diet"]:
+    for ing in (data.get("diet") or []):
         lines.append(f"{ing['feed_id']};\"{ing['name']}\";{ing['amount_kg']};{ing['percentage']}%;{ing['price_per_kg']};{ing['cost_per_day']};{ing['cost_percentage']}%")
     lines.append("")
     lines.append("3. RESTRIÇÕES ATIVAS DO MODELO DE OTIMIZAÇÃO (BINDING CONSTRAINTS)")
@@ -818,32 +1025,78 @@ def compare_solvers(base_dir: Path, milk_price: float = 0.45) -> Dict[str, Any]:
     """
     Compara lado a lado a formulação da ração obtida pelos modelos
     Linear (LP / HiGHS Simplex) e Não-Linear (NLP / SLSQP Biofísico).
+    
+    Regra estrita: Caso haja falha na execução ou convergência de qualquer
+    um dos solvers (NLP ou LP), nenhum valor de comparação é calculado,
+    e a função retorna o status de falha com o motivo detalhado para alertar o usuário.
     """
     from scipy.optimize import linprog
 
+    # 1. Validação da execução e convergência do Solver Não-Linear (NLP / SLSQP)
     po_data = analyze_po_results(base_dir, milk_price=milk_price)
     if not po_data.get("has_results"):
-        return {"error": "Nenhum resultado de simulação disponível para comparação."}
+        return {
+            "success": False,
+            "failed_solver": "Não-Linear (NLP / SLSQP)",
+            "error_title": "Falha no Solver Não-Linear (NLP / SLSQP)",
+            "failure_reason": (
+                "Nenhum resultado de simulação biofísica disponível. O modelo Não-Linear "
+                "(NLP / SLSQP) não foi executado ou não produziu registros de saída válidos. "
+                "Execute uma simulação antes de solicitar o comparativo."
+            ),
+            "linear": None,
+            "nonlinear": None,
+            "comparison": None,
+        }
 
-    nlp_diet = po_data["diet"]
-    nlp_kpis = po_data["kpis"]
+    if po_data.get("formulation_failed") or po_data.get("fallback_used"):
+        return {
+            "success": False,
+            "failed_solver": "Não-Linear (NLP / SLSQP)",
+            "error_title": "Falha na Formulação Automatizada da Ração",
+            "failure_reason": (
+                "A formulação automatizada da ração falhou devido à violação de restrições zootécnicas "
+                "infactíveis ('Previous ration used because automated ration formulation failed... "
+                "Used most recently formulated ration instead.'). "
+                "Nenhum valor comparativo entre solvers foi gerado para evitar conclusões incorretas."
+            ),
+            "linear": None,
+            "nonlinear": None,
+            "comparison": None,
+        }
+
+    nlp_diet = po_data.get("diet", [])
+    nlp_kpis = po_data.get("kpis", {})
+
+    n = len(nlp_diet)
+    total_dmi_nlp = float(nlp_kpis.get("total_dmi_kg", 0.0) or 0.0)
+    cost_nlp = float(nlp_kpis.get("cost_per_cow_day", 0.0) or 0.0)
+
+    if n == 0 or total_dmi_nlp <= 0.0:
+        return {
+            "success": False,
+            "failed_solver": "Não-Linear (NLP / SLSQP)",
+            "error_title": "Falha de Convergência do Solver Não-Linear (NLP)",
+            "failure_reason": (
+                "O modelo Não-Linear (NLP / SLSQP) falhou em formular uma ração viável: "
+                "a dieta resultante não possui insumos alocados ou o consumo total de matéria seca é nulo (DMI <= 0). "
+                "Nenhum valor comparativo foi calculado."
+            ),
+            "linear": None,
+            "nonlinear": None,
+            "comparison": None,
+        }
 
     # Prepara dados para o modelo Linear (LP)
-    n = len(nlp_diet)
-    if n == 0:
-        return {"error": "A dieta atual não possui ingredientes para comparação."}
-
     c = np.array([item["price_per_kg"] for item in nlp_diet], dtype=float)
-    total_dmi_nlp = nlp_kpis["total_dmi_kg"]
-    cost_nlp = nlp_kpis["cost_per_cow_day"]
 
-    # Bounds: [0, max(amount * 1.5, 1.0)]
+    # Bounds: [0, max(amount * 1.4, 0.5)]
     bounds = [(0.0, max(float(item["amount_kg"]) * 1.4, 0.5)) for item in nlp_diet]
 
     A_ub = []
     b_ub = []
 
-    # 1. DMI Limits (+/- 5%)
+    # 1. Limites de Consumo de Matéria Seca (+/- 5%)
     A_ub.append(np.ones(n))
     b_ub.append(total_dmi_nlp * 1.05)
 
@@ -851,54 +1104,93 @@ def compare_solvers(base_dir: Path, milk_price: float = 0.45) -> Dict[str, Any]:
     b_ub.append(-total_dmi_nlp * 0.95)
 
     # 2. Requisito de Forragem mínima (40% da matéria seca)
-    # Identifica forragens por nome (silage, hay, legume, grass)
     forage_flags = np.array([
         1.0 if any(w in item["name"].lower() for w in ["silage", "hay", "legume", "grass", "forage"]) else 0.0
         for item in nlp_diet
     ])
     if np.sum(forage_flags) > 0:
-        # sum(forage * x) >= 0.40 * sum(x) => sum((forage - 0.40) * x) >= 0 => -sum <= 0
         A_ub.append(-(forage_flags - 0.40))
         b_ub.append(0.0)
 
-    # 3. Concentrado mínimo para atender energia
+    # 3. Concentrado mínimo para atender energia (20% da matéria seca)
     conc_flags = 1.0 - forage_flags
     if np.sum(conc_flags) > 0:
         A_ub.append(-(conc_flags - 0.20))
         b_ub.append(0.0)
 
-    # Resolve o modelo linear
-    res_lp = linprog(c, A_ub=np.array(A_ub), b_ub=np.array(b_ub), bounds=bounds, method="highs")
+    # 2. Execução protegida do Solver Linear (LP / HiGHS Simplex)
+    try:
+        res_lp = linprog(c, A_ub=np.array(A_ub), b_ub=np.array(b_ub), bounds=bounds, method="highs")
+    except Exception as exc:
+        return {
+            "success": False,
+            "failed_solver": "Linear (LP / HiGHS Simplex)",
+            "error_title": "Erro na Execução do Solver Linear",
+            "failure_reason": f"Ocorreu uma exceção ao executar o solver linear HiGHS: {str(exc)}. Nenhum valor foi calculado.",
+            "linear": None,
+            "nonlinear": None,
+            "comparison": None,
+        }
+
+    # Se o solver linear falhar (ex: infactibilidade, estouro de iterações, ilimitado)
+    if not res_lp.success:
+        status_explanations = {
+            1: "Limite de iterações atingido sem convergência para uma solução factível ótima.",
+            2: (
+                "Infactibilidade matemática (Infeasible): O conjunto de restrições lineares "
+                "(limites de MS entre 95% e 105%, mínimo de 40% de forragem e cotas por ingrediente) "
+                "é inconsistente com os alimentos disponíveis."
+            ),
+            3: "Problema ilimitado (Unbounded): A função de custo decresce sem limite inferior.",
+            4: "Instabilidade ou dificuldade numérica detectada pelo algoritmo simplex HiGHS.",
+        }
+        status_desc = status_explanations.get(
+            res_lp.status,
+            f"Falha de otimização reportada pelo solver HiGHS com código de status {res_lp.status}."
+        )
+        return {
+            "success": False,
+            "failed_solver": "Linear (LP / HiGHS Simplex)",
+            "error_title": "Falha no Solver Linear (LP / HiGHS)",
+            "failure_reason": (
+                f"O Solver Linear (LP / HiGHS) não conseguiu resolver a dieta. "
+                f"Motivo: {status_desc} "
+                f"(Mensagem técnica: '{res_lp.message}'). "
+                f"Nenhum valor comparativo foi calculado para evitar resultados incorretos."
+            ),
+            "status_code": int(res_lp.status),
+            "status_message": str(res_lp.message),
+            "linear": None,
+            "nonlinear": None,
+            "comparison": None,
+        }
+
+    # Ambos os solvers foram bem-sucedidos: calcula os valores reais
+    lp_x = res_lp.x
+    lp_cost_total = float(res_lp.fun)
+    lp_dmi_total = float(sum(lp_x))
 
     linear_diet = []
-    if res_lp.success:
-        lp_x = res_lp.x
-        lp_cost_total = float(res_lp.fun)
-        lp_dmi_total = float(sum(lp_x))
-
-        for idx, item in enumerate(nlp_diet):
-            amount_lp = float(lp_x[idx])
-            cost_lp = amount_lp * item["price_per_kg"]
-            linear_diet.append({
-                "feed_id": item["feed_id"],
-                "name": item["name"],
-                "amount_kg": round(amount_lp, 3),
-                "price_per_kg": item["price_per_kg"],
-                "cost_per_day": round(cost_lp, 3),
-                "percentage": round(amount_lp / lp_dmi_total * 100, 2) if lp_dmi_total > 0 else 0.0,
-            })
-    else:
-        # Fallback proporcional caso restrições sejam muito rígidas
-        lp_cost_total = cost_nlp * 0.96
-        lp_dmi_total = total_dmi_nlp
-        for item in nlp_diet:
-            linear_diet.append(dict(item))
+    for idx, item in enumerate(nlp_diet):
+        amount_lp = float(lp_x[idx])
+        cost_lp = amount_lp * item["price_per_kg"]
+        linear_diet.append({
+            "feed_id": item["feed_id"],
+            "name": item["name"],
+            "amount_kg": round(amount_lp, 3),
+            "price_per_kg": item["price_per_kg"],
+            "cost_per_day": round(cost_lp, 3),
+            "percentage": round(amount_lp / lp_dmi_total * 100, 2) if lp_dmi_total > 0 else 0.0,
+        })
 
     # Métricas comparativas
     cost_diff = round(lp_cost_total - cost_nlp, 3)
     cost_diff_pct = round((cost_diff / cost_nlp * 100), 2) if cost_nlp > 0 else 0.0
 
     return {
+        "success": True,
+        "failed_solver": None,
+        "failure_reason": None,
         "nonlinear": {
             "solver_name": "Não-Linear (NLP / SLSQP)",
             "description": "Modelo Biofísico com desconto de taxa de passagem e fermentação ruminal dinâmica",

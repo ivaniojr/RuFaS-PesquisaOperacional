@@ -849,16 +849,57 @@ async function loadResults() {
     const data = await res.json();
     if (!data.has_results) return;
 
-    if (document.getElementById("kpi-milk")) document.getElementById("kpi-milk").textContent = `${data.kpis.avg_milk_daily} kg`;
-    if (document.getElementById("kpi-dmi")) document.getElementById("kpi-dmi").textContent = `${data.kpis.avg_cow_dmi} kg`;
-    if (document.getElementById("kpi-days")) document.getElementById("kpi-days").textContent = data.kpis.total_days_simulated;
-    if (document.getElementById("kpi-ingredients")) document.getElementById("kpi-ingredients").textContent = data.kpis.active_ingredients_count;
+    const dashAlert = document.getElementById("dashboard-contingency-alert");
+    if (data.formulation_failed || data.fallback_used) {
+      if (dashAlert) {
+        dashAlert.style.display = "block";
+        dashAlert.innerHTML = `
+          <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-left: 4px solid #f59e0b; padding: 14px 18px; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span style="font-size: 20px;">⚠️</span>
+              <strong style="font-size: 14.5px; color: #fbbf24;">Aviso: Formulação Automatizada da Ração Falhou — Ração Anterior Utilizada</strong>
+            </div>
+            <div style="font-size: 13px; color: #f1f5f9; line-height: 1.5;">
+              A formulação automatizada da ração falhou devido à violação de restrições zootécnicas. O simulador utilizou a ração de contingência anterior:
+              <div style="margin: 6px 0; padding: 6px 12px; background: rgba(0,0,0,0.3); border-radius: 4px; font-family: monospace; font-size: 12px; color: #fbbf24;">
+                "Previous ration used because automated ration formulation failed... Used most recently formulated ration instead."
+              </div>
+              <strong style="color: #f87171;">Os valores de consumo (DMI) e composição de dieta ótima não foram gerados</strong> para evitar interpretações incorretas sobre uma dieta não otimizada.
+            </div>
+          </div>
+        `;
+      }
 
-    renderDietPieChart(data.diet);
-    renderDietBreakdownTable(data.diet);
-    renderMilkChart(data.milk_series);
-    renderDmiChart(data.pens_dmi);
-    renderConstraints(data.binding_constraints);
+      if (document.getElementById("kpi-milk")) document.getElementById("kpi-milk").textContent = "--";
+      if (document.getElementById("kpi-dmi")) document.getElementById("kpi-dmi").textContent = "--";
+      if (document.getElementById("kpi-days")) document.getElementById("kpi-days").textContent = data.total_days_simulated || "--";
+      if (document.getElementById("kpi-ingredients")) document.getElementById("kpi-ingredients").textContent = "--";
+
+      const dietTbody = document.getElementById("table-diet-breakdown");
+      if (dietTbody) {
+        dietTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px; color: #fbbf24; font-size: 13px;">⚠️ Dieta ótima não gerada: a formulação automatizada falhou e utilizou a ração de contingência anterior.</td></tr>`;
+      }
+      if (chartDiet) chartDiet.destroy();
+
+      renderMilkChart(data.milk_series || []);
+      renderDmiChart(data.pens_dmi || {});
+      renderConstraints(data.binding_constraints || {});
+      return;
+    } else {
+      if (dashAlert) dashAlert.style.display = "none";
+    }
+
+    const kpis = data.kpis || {};
+    if (document.getElementById("kpi-milk")) document.getElementById("kpi-milk").textContent = `${kpis.avg_milk_daily || 0} kg`;
+    if (document.getElementById("kpi-dmi")) document.getElementById("kpi-dmi").textContent = `${kpis.avg_cow_dmi || 0} kg`;
+    if (document.getElementById("kpi-days")) document.getElementById("kpi-days").textContent = kpis.total_days_simulated || "--";
+    if (document.getElementById("kpi-ingredients")) document.getElementById("kpi-ingredients").textContent = kpis.active_ingredients_count || 0;
+
+    renderDietPieChart(data.diet || []);
+    renderDietBreakdownTable(data.diet || []);
+    renderMilkChart(data.milk_series || []);
+    renderDmiChart(data.pens_dmi || {});
+    renderConstraints(data.binding_constraints || {});
   } catch (err) {
     console.error("Erro ao carregar resultados:", err);
   }
@@ -1033,15 +1074,67 @@ async function loadPOAnalytics() {
     const data = await res.json();
     if (!data.has_results) return;
 
+    const poAlert = document.getElementById("po-contingency-alert");
+    if (data.formulation_failed || data.fallback_used) {
+      if (poAlert) {
+        poAlert.style.display = "block";
+        const constrBadges = (data.failed_constraints_labels || []).map(l => `<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 11px; padding: 3px 8px; margin: 2px 4px 2px 0; display: inline-block;">${l}</span>`).join("");
+        poAlert.innerHTML = `
+          <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-left: 4px solid #f59e0b; padding: 16px 20px; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+              <span style="font-size: 22px;">⚠️</span>
+              <strong style="font-size: 15px; color: #fbbf24;">Aviso: Formulação Automatizada da Ração Falhou — Ração de Contingência Utilizada</strong>
+            </div>
+            <div style="font-size: 13px; color: #f1f5f9; line-height: 1.55;">
+              A formulação automatizada de ração para vacas em lactação não convergiu para uma solução viável devido à violação de restrições zootécnicas. O RuFaS utilizou a ração de contingência anterior:
+              <div style="margin: 8px 0; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 5px; font-family: monospace; font-size: 12px; color: #fbbf24;">
+                "Previous ration used because automated ration formulation failed... Used most recently formulated ration instead."
+              </div>
+              <strong style="color: #f87171;">Os valores de consumo (CMS), custo diário da ração, custo/kg leite e IOFC não foram gerados</strong> para evitar conclusões incorretas sobre uma dieta não otimizada.
+            </div>
+            <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+              <span style="font-size: 12px; color: #cbd5e1; font-weight: 600;">Restrições não atendidas:</span>
+              ${constrBadges || '<span style="color: #cbd5e1; font-size: 12px;">Cálcio / Proteína</span>'}
+            </div>
+            <div style="margin-top: 8px; font-size: 12px; color: #94a3b8;">
+              💡 <strong>Recomendação Técnica:</strong> ${data.recommendation || "Adicione fontes minerais (ex: Calcário Calcítico) ou revise os limites zootécnicos dos alimentos."}
+            </div>
+          </div>
+        `;
+      }
+
+      // Supressão de valores de KPIs de PO
+      if (document.getElementById("po-kpi-cost-cow")) document.getElementById("po-kpi-cost-cow").textContent = "--";
+      if (document.getElementById("po-kpi-cost-milk")) document.getElementById("po-kpi-cost-milk").textContent = "--";
+      if (document.getElementById("po-kpi-iofc")) document.getElementById("po-kpi-iofc").textContent = "--";
+      if (document.getElementById("po-kpi-efficiency")) document.getElementById("po-kpi-efficiency").textContent = "--";
+      if (document.getElementById("po-kpi-cows")) document.getElementById("po-kpi-cows").textContent = "--";
+
+      // Mensagem na tabela de dieta de PO
+      const dietTbody = document.getElementById("table-po-diet-body");
+      if (dietTbody) {
+        dietTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 25px; color: #fbbf24; font-size: 13px;">⚠️ <strong>Dieta ótima não gerada:</strong> A formulação automatizada falhou e utilizou a ração de contingência anterior ("Previous ration used because automated ration formulation failed... Used most recently formulated ration instead.").</td></tr>`;
+      }
+
+      // Restrições de PO
+      renderPOConstraintsTable(data.binding_constraints || {});
+
+      // Comparativo de Solvers (LP vs NLP)
+      loadSolverComparison(milkPrice);
+      return;
+    } else {
+      if (poAlert) poAlert.style.display = "none";
+    }
+
     poCurrentDiet = data.diet || [];
 
-    // Preenche cards de KPIs de PO
+    // Preenche cards de KPIs de PO normalmente
     const kpis = data.kpis || {};
-    if (document.getElementById("po-kpi-cost-cow")) document.getElementById("po-kpi-cost-cow").textContent = `$ ${kpis.cost_per_cow_day.toFixed(2)}`;
-    if (document.getElementById("po-kpi-cost-milk")) document.getElementById("po-kpi-cost-milk").textContent = `$ ${kpis.feed_cost_per_kg_milk.toFixed(4)}`;
-    if (document.getElementById("po-kpi-iofc")) document.getElementById("po-kpi-iofc").textContent = `$ ${kpis.iofc_per_cow_day.toFixed(2)}`;
-    if (document.getElementById("po-kpi-efficiency")) document.getElementById("po-kpi-efficiency").textContent = `${kpis.feed_efficiency.toFixed(2)}x`;
-    if (document.getElementById("po-kpi-cows")) document.getElementById("po-kpi-cows").textContent = `${kpis.lactating_cows_count} vacas`;
+    if (document.getElementById("po-kpi-cost-cow")) document.getElementById("po-kpi-cost-cow").textContent = `$ ${Number(kpis.cost_per_cow_day || 0).toFixed(2)}`;
+    if (document.getElementById("po-kpi-cost-milk")) document.getElementById("po-kpi-cost-milk").textContent = `$ ${Number(kpis.feed_cost_per_kg_milk || 0).toFixed(4)}`;
+    if (document.getElementById("po-kpi-iofc")) document.getElementById("po-kpi-iofc").textContent = `$ ${Number(kpis.iofc_per_cow_day || 0).toFixed(2)}`;
+    if (document.getElementById("po-kpi-efficiency")) document.getElementById("po-kpi-efficiency").textContent = `${Number(kpis.feed_efficiency || 0).toFixed(2)}x`;
+    if (document.getElementById("po-kpi-cows")) document.getElementById("po-kpi-cows").textContent = `${kpis.lactating_cows_count || 0} vacas`;
 
     // Popula tabela da dieta com custos
     renderPODietTable(poCurrentDiet);
@@ -1058,7 +1151,7 @@ async function loadPOAnalytics() {
     }
 
     // Restrições de PO
-    renderPOConstraintsTable(data.binding_constraints);
+    renderPOConstraintsTable(data.binding_constraints || {});
 
     // Comparativo de Solvers (LP vs NLP)
     loadSolverComparison(milkPrice);
@@ -1279,12 +1372,116 @@ function renderPOConstraintsTable(binding) {
 
 // 6. Comparativo de Solvers (LP vs NLP)
 async function loadSolverComparison(milkPrice = 0.45) {
+  const alertContainer = document.getElementById("solver-comparison-alert-container");
+
   try {
     const res = await fetch(`/api/po/compare_solvers?milk_price=${milkPrice}`);
     const data = await res.json();
-    if (data.error) {
-      console.warn("Aviso comparativo de solvers:", data.error);
+
+    // Se houver falha na execução de qualquer um dos solvers
+    if (!data || data.success === false || data.error || data.failure_reason) {
+      const solverName = data.failed_solver || "Otimizador";
+      const failureReason = data.failure_reason || data.error || "Falha matemática na convergência do solver.";
+      const errorTitle = data.error_title || "Falha na Execução do Solver de Otimização";
+
+      // 1. Alerta ao usuário via Toast
+      showToast(`⚠️ [${solverName}] ${failureReason}`, "error", 6500);
+
+      // 2. Banner de Alerta Visual no Painel
+      if (alertContainer) {
+        alertContainer.style.display = "block";
+        alertContainer.innerHTML = `
+          <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.45); border-left: 5px solid #ef4444; border-radius: 8px; padding: 16px 20px; color: #fecaca;">
+            <div style="display: flex; align-items: flex-start; gap: 14px;">
+              <span style="font-size: 26px; line-height: 1;">⚠️</span>
+              <div style="flex: 1;">
+                <h4 style="margin: 0 0 6px 0; color: #f87171; font-size: 16px; font-weight: 600;">
+                  ${errorTitle}
+                </h4>
+                <p style="margin: 0 0 10px 0; font-size: 13.5px; line-height: 1.55; color: #cbd5e1;">
+                  <strong>Solver Afetado:</strong> <span class="badge" style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; font-weight: 600;">${solverName}</span><br>
+                  <strong>Motivo da Falha:</strong> ${failureReason}
+                </p>
+                <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(0, 0, 0, 0.35); padding: 6px 12px; border-radius: 6px; font-size: 12px; color: #fda4af; border: 1px dashed rgba(239, 68, 68, 0.4);">
+                  <span>🚫</span>
+                  <strong>Nenhum valor comparativo foi calculado para evitar resultados incorretos ou artificiais.</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 3. Bloqueia e limpa os KPIs para indicar que NENHUM valor foi calculado
+      if (document.getElementById("compare-lp-cost")) {
+        document.getElementById("compare-lp-cost").textContent = "Falha";
+        document.getElementById("compare-lp-cost").style.color = "#f87171";
+      }
+      if (document.getElementById("compare-lp-dmi")) {
+        document.getElementById("compare-lp-dmi").textContent = "Consumo: Não calculado";
+      }
+
+      if (document.getElementById("compare-nlp-cost")) {
+        if (data.nonlinear && data.nonlinear.cost_per_cow_day) {
+          document.getElementById("compare-nlp-cost").textContent = `$ ${data.nonlinear.cost_per_cow_day.toFixed(3)}`;
+          document.getElementById("compare-nlp-cost").style.color = "#f59e0b";
+        } else {
+          document.getElementById("compare-nlp-cost").textContent = "Falha";
+          document.getElementById("compare-nlp-cost").style.color = "#f87171";
+        }
+      }
+      if (document.getElementById("compare-nlp-dmi")) {
+        if (data.nonlinear && data.nonlinear.total_dmi_kg) {
+          document.getElementById("compare-nlp-dmi").textContent = `Consumo: ${data.nonlinear.total_dmi_kg.toFixed(2)} kg MS/dia`;
+        } else {
+          document.getElementById("compare-nlp-dmi").textContent = "Consumo: Não calculado";
+        }
+      }
+
+      if (document.getElementById("compare-cost-diff")) {
+        document.getElementById("compare-cost-diff").textContent = "--";
+        document.getElementById("compare-cost-diff").style.color = "#94a3b8";
+      }
+      if (document.getElementById("compare-cost-diff-pct")) {
+        document.getElementById("compare-cost-diff-pct").textContent = "Variação relativa: Não calculada (Execução abortada)";
+      }
+
+      // 4. Limpa e sinaliza na tabela de ingredientes
+      const tbody = document.getElementById("table-compare-solvers-body");
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; color: #f87171; padding: 26px 16px; background: rgba(239, 68, 68, 0.05);">
+              <div style="font-size: 15px; font-weight: 600; margin-bottom: 6px;">
+                ⚠️ Execução Interrompida: Falha no Solver <strong>${solverName}</strong>
+              </div>
+              <div style="font-size: 13px; color: var(--text-muted); max-width: 650px; margin: 0 auto 8px auto; line-height: 1.45;">
+                ${failureReason}
+              </div>
+              <div style="font-size: 12px; color: #fda4af; font-weight: 600;">
+                🚫 Nenhum ingrediente ou valor foi calculado.
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      // 5. Atualiza caixa explicativa
+      if (document.getElementById("compare-interpretation")) {
+        document.getElementById("compare-interpretation").innerHTML = `
+          <span style="color: #f87171; font-weight: 500;">
+            ⚠️ O cálculo comparativo entre os modelos foi suspenso devido à falha de execução no solver <strong>${solverName}</strong>.
+            Nenhum valor comparativo foi calculado. Ajuste os insumos ou limites do lote para restaurar a viabilidade matemática.
+          </span>
+        `;
+      }
       return;
+    }
+
+    // Se ambos os solvers executaram com sucesso:
+    if (alertContainer) {
+      alertContainer.style.display = "none";
+      alertContainer.innerHTML = "";
     }
 
     const lp = data.linear;
@@ -1293,6 +1490,7 @@ async function loadSolverComparison(milkPrice = 0.45) {
 
     if (document.getElementById("compare-lp-cost")) {
       document.getElementById("compare-lp-cost").textContent = `$ ${lp.cost_per_cow_day.toFixed(3)}`;
+      document.getElementById("compare-lp-cost").style.color = "#60a5fa";
     }
     if (document.getElementById("compare-lp-dmi")) {
       document.getElementById("compare-lp-dmi").textContent = `Consumo: ${lp.total_dmi_kg.toFixed(2)} kg MS/dia`;
@@ -1300,6 +1498,7 @@ async function loadSolverComparison(milkPrice = 0.45) {
 
     if (document.getElementById("compare-nlp-cost")) {
       document.getElementById("compare-nlp-cost").textContent = `$ ${nlp.cost_per_cow_day.toFixed(3)}`;
+      document.getElementById("compare-nlp-cost").style.color = "#f59e0b";
     }
     if (document.getElementById("compare-nlp-dmi")) {
       document.getElementById("compare-nlp-dmi").textContent = `Consumo: ${nlp.total_dmi_kg.toFixed(2)} kg MS/dia`;
@@ -1323,6 +1522,7 @@ async function loadSolverComparison(milkPrice = 0.45) {
     renderSolverComparisonTable(lp.diet, nlp.diet);
   } catch (err) {
     console.error("Erro ao carregar comparativo de solvers:", err);
+    showToast(`Erro na requisição do comparativo: ${err}`, "error");
   }
 }
 
@@ -1438,7 +1638,7 @@ async function loadSimulationHistory() {
 
   if (loading) loading.style.display = "block";
   if (empty) empty.style.display = "none";
-  if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-dim);">Carregando simulações...</td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim);">Carregando simulações...</td></tr>`;
 
   try {
     const res = await fetch("/api/simulations/history");
@@ -1481,7 +1681,7 @@ async function loadSimulationHistory() {
   } catch (err) {
     console.error("Erro ao carregar histórico:", err);
     if (loading) loading.style.display = "none";
-    if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #f87171;">Erro ao carregar histórico: ${err}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #f87171;">Erro ao carregar histórico: ${err}</td></tr>`;
   }
 }
 
@@ -1507,47 +1707,185 @@ function renderHistoryTable(filterFarmCode = "") {
 
   filtered.forEach(sim => {
     const tr = document.createElement("tr");
+    tr.style.verticalAlign = "top";
+
     const kpis = sim.kpis || {};
-    const costStr = kpis.cost_per_cow_day ? `$ ${kpis.cost_per_cow_day.toFixed(2)}` : "-";
-    const iofcStr = kpis.iofc_per_cow_day ? `$ ${kpis.iofc_per_cow_day.toFixed(2)}` : "-";
     const isSuccess = sim.status === "success" && sim.exit_code === 0;
+    const isFallback = Boolean(
+      sim.formulation_failed ||
+      sim.fallback_used ||
+      !sim.kpis ||
+      Object.keys(kpis).length === 0
+    );
+
+    // Formatações zootécnicas (apenas se não houver fallback)
+    const dmiStr = (kpis.total_dmi_kg !== undefined && kpis.total_dmi_kg !== null)
+      ? `${Number(kpis.total_dmi_kg).toFixed(2)} kg MS/dia`
+      : "-";
+    const milkStr = (kpis.milk_per_cow_daily !== undefined && kpis.milk_per_cow_daily !== null)
+      ? `${Number(kpis.milk_per_cow_daily).toFixed(1)} kg/vaca/dia`
+      : "-";
+    const herdMilkStr = (kpis.total_herd_milk_daily !== undefined && kpis.total_herd_milk_daily !== null)
+      ? `${Number(kpis.total_herd_milk_daily).toLocaleString("pt-BR", {maximumFractionDigits: 1})} kg/dia`
+      : "-";
+    const effStr = (kpis.feed_efficiency !== undefined && kpis.feed_efficiency !== null)
+      ? `${Number(kpis.feed_efficiency).toFixed(2)} kg leite/kg MS`
+      : "-";
+    const activeFeedsStr = (kpis.active_ingredients_count !== undefined && kpis.active_ingredients_count !== null)
+      ? `${kpis.active_ingredients_count} insumos ativos`
+      : "-";
+
+    // Formatações econômicas (apenas se não houver fallback)
+    const costStr = (kpis.cost_per_cow_day !== undefined && kpis.cost_per_cow_day !== null)
+      ? `$ ${Number(kpis.cost_per_cow_day).toFixed(3)} /dia`
+      : "-";
+    const feedCostPerKgMilkStr = (kpis.feed_cost_per_kg_milk !== undefined && kpis.feed_cost_per_kg_milk !== null)
+      ? `$ ${Number(kpis.feed_cost_per_kg_milk).toFixed(4)} /kg`
+      : "-";
+    const revenueStr = (kpis.milk_revenue_per_cow !== undefined && kpis.milk_revenue_per_cow !== null)
+      ? `$ ${Number(kpis.milk_revenue_per_cow).toFixed(2)} /dia`
+      : "-";
+    const iofcStr = (kpis.iofc_per_cow_day !== undefined && kpis.iofc_per_cow_day !== null)
+      ? `$ ${Number(kpis.iofc_per_cow_day).toFixed(2)} /dia`
+      : "-";
+    const milkPriceStr = (kpis.milk_price_assumed !== undefined && kpis.milk_price_assumed !== null)
+      ? `$ ${Number(kpis.milk_price_assumed).toFixed(2)}/kg`
+      : "$ 0.45/kg";
+
+    const fallbackBadgeHtml = isFallback
+      ? `<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.45); align-self: flex-start; font-size: 10.5px; padding: 3px 6px; display: inline-flex; align-items: center; gap: 4px;" title="A formulação de ração falhou e a ração anterior foi utilizada">
+           ⚠️ Ração Contingência
+         </span>`
+      : "";
+
+    const failedBadgesHtml = (sim.failed_constraints_labels && sim.failed_constraints_labels.length > 0)
+      ? sim.failed_constraints_labels.map(l => `<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 10px; padding: 2px 6px; margin: 2px 2px 0 0; display: inline-block;">${l}</span>`).join("")
+      : `<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 10px; padding: 2px 6px; margin-top: 2px; display: inline-block;">Restrições zootécnicas infactíveis (ex: Cálcio)</span>`;
+
+    const col3Content = isFallback
+      ? `<div style="background: rgba(245, 158, 11, 0.08); border-left: 3px solid #f59e0b; padding: 8px 10px; border-radius: 4px; font-size: 12px; line-height: 1.45;">
+           <strong style="color: #fbbf24; display: block; margin-bottom: 2px;">⚠️ Valores Não Gerados</strong>
+           <span style="color: #e2e8f0; display: block;">
+             A formulação automatizada da ração falhou. A ração anterior/padrão foi reutilizada como contingência.
+           </span>
+           <div style="margin-top: 5px; color: #94a3b8; font-size: 10.5px; font-style: italic; line-height: 1.3;">
+             "Previous ration used because automated ration formulation failed... Used most recently formulated ration instead."
+           </div>
+         </div>`
+      : `<div>
+           <span style="color: var(--text-dim);">Consumo (CMS):</span> 
+           <strong style="color: #38bdf8; font-size: 13px;">${dmiStr}</strong>
+         </div>
+         <div>
+           <span style="color: var(--text-dim);">Produção Leite:</span> 
+           <strong style="color: #f1f5f9;">${milkStr}</strong>
+         </div>
+         <div>
+           <span style="color: var(--text-dim);">Prod. Rebanho:</span> 
+           <span style="color: #cbd5e1;">${herdMilkStr}</span>
+         </div>
+         <div>
+           <span style="color: var(--text-dim);">Eficiência Alimentar:</span> 
+           <strong style="color: #a78bfa;">${effStr}</strong>
+         </div>
+         <div style="font-size: 11.5px; color: var(--text-muted);">
+           <span style="color: var(--text-dim);">Formulação:</span> 
+           <span>${activeFeedsStr}</span>
+         </div>`;
+
+    const col4Content = isFallback
+      ? `<div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 8px 10px; border-radius: 4px; font-size: 12px; line-height: 1.45;">
+           <strong style="color: #f87171; display: block; margin-bottom: 2px;">⚠️ Custos e IOFC Não Calculados</strong>
+           <span style="color: #cbd5e1; display: block; margin-bottom: 4px;">
+             O solver não encontrou solução factível para as restrições nutricionais do lote.
+           </span>
+           <div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px;">
+             ${failedBadgesHtml}
+           </div>
+         </div>`
+      : `<div>
+           <span style="color: var(--text-dim);">Custo Ração:</span> 
+           <strong style="color: #f59e0b; font-size: 13px;">${costStr}</strong>
+         </div>
+         <div>
+           <span style="color: var(--text-dim);">Custo / kg Leite:</span> 
+           <strong style="color: #fbbf24;">${feedCostPerKgMilkStr}</strong>
+         </div>
+         <div>
+           <span style="color: var(--text-dim);">Receita Leite:</span> 
+           <span style="color: #cbd5e1;">${revenueStr}</span>
+         </div>
+         <div>
+           <span style="color: var(--text-dim);">IOFC (Margem):</span> 
+           <strong style="color: #10b981; font-size: 13.5px;">${iofcStr}</strong>
+         </div>
+         <div style="font-size: 11px; color: var(--text-dim);">
+           <span>Preço Leite Base:</span> ${milkPriceStr}
+         </div>`;
 
     tr.innerHTML = `
+      <!-- Coluna 1: Identificação da Simulação -->
       <td>
-        <span class="badge" style="background: rgba(59, 130, 246, 0.18); color: #60a5fa; font-weight: 700; font-family: monospace; font-size: 12px; letter-spacing: 0.5px; border: 1px solid rgba(59, 130, 246, 0.3);">
-          ${sim.simulation_code || sim.simulation_id}
-        </span>
-        <div style="font-size: 11px; color: var(--text-dim); font-family: monospace; margin-top: 3px;">
-          Rodada #${sim.run_number || 1}
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <span class="badge" style="background: rgba(59, 130, 246, 0.18); color: #60a5fa; font-weight: 700; font-family: monospace; font-size: 12.5px; letter-spacing: 0.5px; border: 1px solid rgba(59, 130, 246, 0.3); padding: 4px 8px; align-self: flex-start;">
+            ${sim.simulation_code || sim.simulation_id}
+          </span>
+          <span style="font-size: 11px; color: var(--text-dim); font-family: monospace;">
+            Rodada #${sim.run_number || 1}
+          </span>
+          <span class="badge ${isSuccess ? 'badge-success' : 'badge-danger'}" style="background: ${isSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${isSuccess ? '#34d399' : '#f87171'}; align-self: flex-start; font-size: 11px; padding: 3px 7px;">
+            ${isSuccess ? '✅ Concluída' : '❌ Falhou'}
+          </span>
+          ${fallbackBadgeHtml}
         </div>
       </td>
-      <td>
-        <strong>${sim.farm_name || "Fazenda"}</strong>
-        <div style="font-size: 11px; color: var(--text-dim); font-family: monospace;">${sim.folder_name}</div>
+
+      <!-- Coluna 2: Dados da Simulação (Metadados Condensados) -->
+      <td style="line-height: 1.6; font-size: 12.5px;">
+        <div style="margin-bottom: 2px;">
+          <strong style="color: #f1f5f9; font-size: 13.5px;">${sim.farm_name || "Fazenda"}</strong> 
+          <span style="font-size: 11px; color: var(--text-dim);">(${sim.farm_code || "FAZ"})</span>
+        </div>
+        <div style="color: #cbd5e1;">
+          <span style="color: var(--text-dim);">Data/Hora:</span> 
+          <span>📅 ${sim.execution_date}</span> às <span>⏰ ${sim.execution_time}</span>
+          ${sim.duration_seconds ? `<span style="color: var(--text-dim);"> (${sim.duration_seconds}s)</span>` : ''}
+        </div>
+        <div style="color: #cbd5e1;">
+          <span style="color: var(--text-dim);">Período:</span> 
+          <strong>${sim.simulated_days || 31} dias</strong>
+          <span style="color: var(--text-dim);"> [${sim.simulation_type || 'full_farm'}]</span>
+        </div>
+        <div style="color: #cbd5e1; margin-top: 2px;">
+          <span style="color: var(--text-dim);">Solver:</span> 
+          <span class="badge" style="padding: 2px 7px; font-size: 11px; background: ${sim.optimization_mode === 'linear' ? 'rgba(59, 130, 246, 0.18)' : 'rgba(16, 185, 129, 0.18)'}; color: ${sim.optimization_mode === 'linear' ? '#60a5fa' : '#34d399'}; font-weight: 600;">
+            ${sim.optimization_mode === 'linear' ? 'LP (HiGHS)' : 'NLP (SLSQP)'}
+          </span>
+          <span style="color: var(--text-dim); margin-left: 6px;">Padrão:</span> 
+          <span style="color: #cbd5e1; font-weight: 500;">${sim.nutrient_standard || 'NASEM'}</span>
+        </div>
       </td>
-      <td style="white-space: nowrap;">
-        <span>📅 ${sim.execution_date}</span>
-        <span style="color: var(--text-dim); margin-left: 4px;">⏰ ${sim.execution_time}</span>
+
+      <!-- Coluna 3: Indicadores Zootécnicos (Produção & Rúmen) -->
+      <td style="line-height: 1.6; font-size: 12.5px;">
+        ${col3Content}
       </td>
-      <td>${sim.duration_seconds ? sim.duration_seconds + "s" : "-"}</td>
-      <td>
-        <span class="badge" style="background: ${sim.optimization_mode === 'linear' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)'}; color: ${sim.optimization_mode === 'linear' ? '#60a5fa' : '#34d399'}; text-transform: uppercase;">
-          ${sim.optimization_mode || "NLP"}
-        </span>
+
+      <!-- Coluna 4: Indicadores Econômicos & PO ($) -->
+      <td style="line-height: 1.6; font-size: 12.5px;">
+        ${col4Content}
       </td>
-      <td><span class="badge badge-subtle">${sim.nutrient_standard || "NASEM"}</span></td>
-      <td>${sim.simulated_days || 31} d</td>
-      <td style="font-weight: 600; color: #f59e0b;">${costStr}</td>
-      <td style="font-weight: 600; color: #10b981;">${iofcStr}</td>
-      <td>
-        <span class="badge ${isSuccess ? 'badge-success' : 'badge-danger'}" style="background: ${isSuccess ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; color: ${isSuccess ? '#34d399' : '#f87171'};">
-          ${isSuccess ? '✅ Sucesso' : '❌ Falhou'}
-        </span>
-      </td>
-      <td style="text-align: center; white-space: nowrap;">
-        <button class="btn btn-secondary btn-sm" onclick="openArchiveFolder('${sim.folder_name}')" title="Abre a pasta no explorador de arquivos do sistema" style="padding: 5px 10px; font-size: 12px; font-weight: 500;">
-          📂 Abrir Pasta
-        </button>
+
+      <!-- Coluna 5: Ações e Pasta -->
+      <td style="text-align: center; vertical-align: middle;">
+        <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
+          <button class="btn btn-secondary btn-sm" onclick="openArchiveFolder('${sim.folder_name}')" title="Abre a pasta da simulação no explorador de arquivos" style="padding: 6px 12px; font-size: 12px; font-weight: 500; width: 100%; border-color: rgba(148, 163, 184, 0.3);">
+            📂 Abrir Pasta
+          </button>
+          <span style="font-size: 10px; color: var(--text-dim); font-family: monospace; word-break: break-all; max-width: 135px; line-height: 1.2;">
+            ${sim.folder_name}
+          </span>
+        </div>
       </td>
     `;
     tbody.appendChild(tr);

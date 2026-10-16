@@ -179,6 +179,8 @@ def get_active_simulation_config(base_dir: Path) -> Dict[str, Any]:
                 info["end_date"] = c_data.get("end_date", "2013:31")
                 info["simulation_type"] = c_data.get("simulation_type", "animals_only")
                 info["optimization_mode"] = c_data.get("optimization_mode", "nonlinear")
+                if "nutrient_standard" in c_data:
+                    info["nutrient_standard"] = c_data["nutrient_standard"]
 
                 s_parts = info["start_date"].split(":")
                 e_parts = info["end_date"].split(":")
@@ -289,16 +291,34 @@ def archive_simulation(
             print(f"[SimulationTracker] Aviso ao copiar CSV de resultados: {e}")
 
     # Gera relatório de Pesquisa Operacional e análises consolidadas
-    kpis: Dict[str, Any] = {}
+    kpis: Optional[Dict[str, Any]] = None
+    formulation_failed = False
+    fallback_used = False
+    fallback_message = None
+    failed_constraints = []
+    failed_constraints_labels = []
+
     try:
         from web_app.po_analytics import analyze_po_results, generate_po_csv_report
-        po_data = analyze_po_results(base_dir)
+        po_data = analyze_po_results(base_dir, specific_csv=latest_csv_path)
         if po_data.get("has_results"):
-            kpis = po_data.get("kpis", {})
+            formulation_failed = po_data.get("formulation_failed", False)
+            fallback_used = po_data.get("fallback_used", False)
+            fallback_message = po_data.get("fallback_message")
+            failed_constraints = po_data.get("failed_constraints", [])
+            failed_constraints_labels = po_data.get("failed_constraints_labels", [])
+
+            # Quando a formulação falha e a ração anterior é utilizada como contingência,
+            # os valores de KPIs NÃO DEVEM ser gerados/calculados
+            if formulation_failed or fallback_used:
+                kpis = None
+            else:
+                kpis = po_data.get("kpis")
+
             with open(res_dir / "analise_po.json", "w", encoding="utf-8") as f:
                 json.dump(po_data, f, indent=2, ensure_ascii=False)
 
-            csv_text = generate_po_csv_report(base_dir)
+            csv_text = generate_po_csv_report(base_dir, specific_csv=latest_csv_path)
             with open(res_dir / "relatorio_pesquisa_operacional.csv", "w", encoding="utf-8") as f:
                 f.write(csv_text)
     except Exception as e:
@@ -342,6 +362,11 @@ def archive_simulation(
         "duration_seconds": round(duration_sec, 2),
         "exit_code": exit_code,
         "status": status_str,
+        "formulation_failed": formulation_failed,
+        "fallback_used": fallback_used,
+        "fallback_message": fallback_message,
+        "failed_constraints": failed_constraints,
+        "failed_constraints_labels": failed_constraints_labels,
         "optimization_mode": cfg.get("optimization_mode", "nonlinear"),
         "nutrient_standard": cfg.get("nutrient_standard", "NASEM"),
         "simulation_type": cfg.get("simulation_type", "animals_only"),

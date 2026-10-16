@@ -1063,12 +1063,13 @@ class RationOptimizer:
         res = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method="highs")
 
         if not res.success:
-            # Fallback seguro para SLSQP se os limites lineares forem estritamente infactíveis
-            return self._attempt_nonlinear_optimization(
-                ration_config=ration_config,
-                bounds=bounds,
-                animal_combination=animal_combination,
-                initial_decision_vector=initial_decision_vector,
+            return OptimizeResult(
+                x=res.x if res.x is not None else initial_decision_vector,
+                success=False,
+                status=res.status,
+                message=f"Linear solver (HiGHS Simplex) failed: {res.message} (status: {res.status})",
+                fun=float(res.fun) if hasattr(res, "fun") and res.fun is not None else 0.0,
+                nit=int(res.nit) if hasattr(res, "nit") and res.nit is not None else 0,
             )
 
         return OptimizeResult(

@@ -4,7 +4,7 @@
     "farm_code": "GO_OURO_PRETO",
     "weather_file": "input/data/weather/BR_GO_weather.csv",
     "scenario_profile": "Conservador (100 vacas, foco em estabilidade)",
-    "nutrient_standard": "NASEM",
+    "nutrient_standard": "NRC",
     "cow_num": 100,
     "milking_cow_fraction": 0.8356,
     "cow_times_milked_per_day": 3,

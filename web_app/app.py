@@ -465,7 +465,28 @@ def get_results():
                 v_str = str(v)
                 binding_constraints[v_str] = binding_constraints.get(v_str, 0) + 1
 
-        # KPIs
+        # Verifica se a formulação falhou e houve fallback para ração de contingência
+        from web_app.po_analytics import check_formulation_fallback
+        fallback_info = check_formulation_fallback(df, base_dir=BASE_DIR, specific_csv=Path(latest_csv))
+
+        if fallback_info["is_fallback"]:
+            return jsonify({
+                "has_results": True,
+                "filename": Path(latest_csv).name,
+                "formulation_failed": True,
+                "fallback_used": True,
+                "fallback_message": fallback_info["message"],
+                "failed_constraints": fallback_info["failed_constraints"],
+                "failed_constraints_labels": fallback_info["failed_constraints_labels"],
+                "recommendation": fallback_info["recommendation"],
+                "kpis": None,
+                "diet": None,
+                "milk_series": milk_series,
+                "pens_dmi": pens_dmi,
+                "binding_constraints": binding_constraints
+            })
+
+        # KPIs normais para formulação bem-sucedida
         avg_milk = round(df[milk_col].dropna().mean(), 2) if milk_col else 0.0
         avg_dmi = round(total_dmi, 2)
         total_days = len(milk_series)
@@ -473,6 +494,8 @@ def get_results():
         return jsonify({
             "has_results": True,
             "filename": Path(latest_csv).name,
+            "formulation_failed": False,
+            "fallback_used": False,
             "kpis": {
                 "avg_milk_daily": avg_milk,
                 "avg_cow_dmi": avg_dmi,
@@ -526,7 +549,15 @@ def get_po_compare_solvers():
         data = compare_solvers(BASE_DIR, milk_price=milk_price)
         return jsonify(data)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "failed_solver": "Erro Geral de Execução",
+            "error_title": "Erro no Processamento dos Solvers",
+            "failure_reason": f"Erro inesperado no servidor: {str(e)}. Nenhum valor foi calculado.",
+            "linear": None,
+            "nonlinear": None,
+            "comparison": None
+        }), 500
 
 @app.route("/api/simulations/history", methods=["GET"])
 def get_simulations_history():
