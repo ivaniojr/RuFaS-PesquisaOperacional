@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+
+<html :class="{ 'dark' : darkMode === true }" data-content_root="../" lang="en" x-data="{ darkMode: $persist(window.matchMedia('(prefers-color-scheme: dark)').matches), activeSection: ''}">
+<head>
+<script>
+    (function () {
+      // Set initial color scheme
+      if ((localStorage.getItem("_x_darkMode") === "true") || (window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+        document.documentElement.classList.add("dark");
+      }
+
+      // Watch for media preference changes
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
+        localStorage.setItem("_x_darkMode", event.matches);
+        document.documentElement.classList.toggle("dark", event.matches);
+      });
+    })();
+  </script>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta charset="utf-8"/>
+<meta content="#ffffff" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="#030711" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Input Manager | Ruminant Farm Simulation (RuFaS)  documentation</title>
+<meta content="Input Manager | Ruminant Farm Simulation (RuFaS)  documentation" property="og:title"/>
+<meta content="Input Manager | Ruminant Farm Simulation (RuFaS)  documentation" name="twitter:title"/>
+<link href="../_static/pygments.css?v=e72c8e07" rel="stylesheet" type="text/css"/>
+<link href="../_static/theme.css?v=d6d7c91b" rel="stylesheet" type="text/css"/>
+<link href="../_static/rufas.png" rel="icon"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="RuFaS-Command-Line-Arguments.html" rel="next" title="RuFaS Command Line Arguments"/>
+<link href="Task-Manager.html" rel="prev" title="Task Manager"/>
+</head>
+<body :class="{ 'overflow-hidden': showSidebar }" class="min-h-screen font-sans antialiased bg-background text-foreground" x-data="{ showSidebar: false, showScrollTop: false }">
+<div @click.self="showSidebar = false" class="fixed inset-0 z-50 overflow-hidden bg-background/80 backdrop-blur-sm md:hidden" x-cloak="" x-show="showSidebar"></div><div class="relative flex flex-col min-h-screen" id="page"><a class="absolute top-0 left-0 z-[100] block bg-background p-4 text-xl transition -translate-x-full opacity-0 focus:translate-x-0 focus:opacity-100" href="#content">
+      Skip to content
+    </a><header class="sticky top-0 z-40 w-full border-b shadow-xs border-border bg-background/90 backdrop-blur"><div class="container flex items-center h-14">
+<div class="hidden mr-4 md:flex">
+<a class="flex items-center mr-6" href="../index.html">
+<img alt="Logo" class="mr-2 dark:invert" height="24" src="../_static/RuFaS Logo Vector.svg" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Ruminant Farm Simulation (RuFaS)  documentation</span>
+</a></div><button @click="showSidebar = true" class="inline-flex items-center justify-center h-10 px-0 py-2 mr-2 text-base font-medium transition-colors rounded-md hover:text-accent-foreground hover:bg-transparent md:hidden" type="button">
+<svg aria-hidden="true" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M152.587 825.087q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440Zm0-203.587q-19.152 0-32.326-13.174T107.087 576q0-19.152 13.174-32.326t32.326-13.174h320q19.152 0 32.326 13.174T518.087 576q0 19.152-13.174 32.326T472.587 621.5h-320Zm0-203.587q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440ZM708.913 576l112.174 112.174q12.674 12.674 12.674 31.826t-12.674 31.826Q808.413 764.5 789.261 764.5t-31.826-12.674l-144-144Q600 594.391 600 576t13.435-31.826l144-144q12.674-12.674 31.826-12.674t31.826 12.674q12.674 12.674 12.674 31.826t-12.674 31.826L708.913 576Z"></path>
+</svg>
+<span class="sr-only">Toggle navigation menu</span>
+</button>
+<div class="flex items-center justify-between flex-1 gap-2 sm:gap-4 md:justify-end">
+<div class="flex-1 w-full md:w-auto md:flex-none"><form @keydown.k.window.meta="$refs.search.focus()" action="../search.html" class="relative flex items-center group" id="searchbox" method="get">
+<input aria-label="Search the docs" class="inline-flex items-center font-medium transition-colors bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background border border-input hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground hover:placeholder-accent-foreground py-2 px-4 relative h-9 w-full justify-start rounded-[0.5rem] text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-64" id="search-input" name="q" placeholder="Search ..." type="search" x-ref="search"/>
+<kbd class="pointer-events-none absolute right-1.5 top-2 hidden h-5 select-none text-muted-foreground items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex group-hover:bg-accent group-hover:text-accent-foreground">
+<span class="text-xs">⌘</span>
+    K
+  </kbd>
+</form>
+</div>
+<nav class="flex items-center gap-1">
+<button @click="darkMode = !darkMode" class="relative inline-flex items-center justify-center px-0 text-sm font-medium transition-colors rounded-md hover:bg-accent hover:text-accent-foreground h-9 w-9" title="Toggle color scheme" type="button">
+<svg class="absolute transition-all scale-100 rotate-0 dark:-rotate-90 dark:scale-0" fill="currentColor" height="16" viewbox="0 96 960 960" width="16" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 685q45.456 0 77.228-31.772Q589 621.456 589 576q0-45.456-31.772-77.228Q525.456 467 480 467q-45.456 0-77.228 31.772Q371 530.544 371 576q0 45.456 31.772 77.228Q434.544 685 480 685Zm0 91q-83 0-141.5-58.5T280 576q0-83 58.5-141.5T480 376q83 0 141.5 58.5T680 576q0 83-58.5 141.5T480 776ZM80 621.5q-19.152 0-32.326-13.174T34.5 576q0-19.152 13.174-32.326T80 530.5h80q19.152 0 32.326 13.174T205.5 576q0 19.152-13.174 32.326T160 621.5H80Zm720 0q-19.152 0-32.326-13.174T754.5 576q0-19.152 13.174-32.326T800 530.5h80q19.152 0 32.326 13.174T925.5 576q0 19.152-13.174 32.326T880 621.5h-80Zm-320-320q-19.152 0-32.326-13.174T434.5 256v-80q0-19.152 13.174-32.326T480 130.5q19.152 0 32.326 13.174T525.5 176v80q0 19.152-13.174 32.326T480 301.5Zm0 720q-19.152 0-32.326-13.17Q434.5 995.152 434.5 976v-80q0-19.152 13.174-32.326T480 850.5q19.152 0 32.326 13.174T525.5 896v80q0 19.152-13.174 32.33-13.174 13.17-32.326 13.17ZM222.174 382.065l-43-42Q165.5 327.391 166 308.239t13.174-33.065q13.435-13.674 32.587-13.674t32.065 13.674l42.239 43q12.674 13.435 12.555 31.706-.12 18.272-12.555 31.946-12.674 13.674-31.445 13.413-18.772-.261-32.446-13.174Zm494 494.761-42.239-43q-12.674-13.435-12.674-32.087t12.674-31.565Q686.609 756.5 705.38 757q18.772.5 32.446 13.174l43 41.761Q794.5 824.609 794 843.761t-13.174 33.065Q767.391 890.5 748.239 890.5t-32.065-13.674Zm-42-494.761Q660.5 369.391 661 350.62q.5-18.772 13.174-32.446l41.761-43Q728.609 261.5 747.761 262t33.065 13.174q13.674 13.435 13.674 32.587t-13.674 32.065l-43 42.239q-13.435 12.674-31.706 12.555-18.272-.12-31.946-12.555Zm-495 494.761Q165.5 863.391 165.5 844.239t13.674-32.065l43-42.239q13.435-12.674 32.087-12.674t31.565 12.674Q299.5 782.609 299 801.38q-.5 18.772-13.174 32.446l-41.761 43Q231.391 890.5 212.239 890t-33.065-13.174ZM480 576Z"></path>
+</svg>
+<svg class="absolute transition-all scale-0 rotate-90 dark:rotate-0 dark:scale-100" fill="currentColor" height="16" viewbox="0 96 960 960" width="16" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 936q-151 0-255.5-104.5T120 576q0-138 90-239.5T440 218q25-3 39 18t-1 44q-17 26-25.5 55t-8.5 61q0 90 63 153t153 63q31 0 61.5-9t54.5-25q21-14 43-1.5t19 39.5q-14 138-117.5 229T480 936Zm0-80q88 0 158-48.5T740 681q-20 5-40 8t-40 3q-123 0-209.5-86.5T364 396q0-20 3-40t8-40q-78 32-126.5 102T200 576q0 116 82 198t198 82Zm-10-270Z"></path>
+</svg>
+</button>
+</nav>
+</div>
+</div>
+</header>
+<div class="flex-1"><div class="container md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10"><aside :aria-hidden="!showSidebar" :class="{ 'translate-x-0': showSidebar }" class="fixed inset-y-0 left-0 md:top-14 z-50 md:z-30 bg-background md:bg-transparent transition-all duration-100 -translate-x-full md:translate-x-0 ml-0 p-6 md:p-0 md:-ml-2 md:h-[calc(100vh-3.5rem)] w-5/6 md:w-full overflow-y-auto border-r border-border md:sticky" id="left-sidebar">
+<a class="justify-start text-sm md:!hidden bg-background" href="../index.html">
+<img alt="Logo" class="mr-2 dark:invert" height="16" src="../_static/RuFaS Logo Vector.svg" width="16"/><span class="font-bold text-clip whitespace-nowrap">Ruminant Farm Simulation (RuFaS)  documentation</span>
+</a>
+<div class="relative overflow-hidden md:overflow-auto my-4 md:my-0">
+<div class="overflow-y-auto h-full w-full relative pr-6"><nav class="table w-full min-w-full my-6 lg:my-8">
+<p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../_code/modules.html">RuFaS</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="onboarding.html"><strong>Welcome to RuFaS</strong></a></li>
+<li class="toctree-l1"><a class="reference internal" href="Onboarding-videos.html">Onboarding Videos</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Infrastructure for Simulation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Task-Manager.html">Task Manager</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Input Manager</a></li>
+<li class="toctree-l1"><a class="reference internal" href="RuFaS-Command-Line-Arguments.html">RuFaS Command Line Arguments</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="om.html">Output Manager<button @click.prevent.stop="expanded = !expanded" type="button" x-cloak=""><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-cloak="" x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="Output-Manager.html">Output Manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Chunkification.html">Chunkification</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Data-Origins.html">Data Origins</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Report-Generator.html">Report Generator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Graph-Generator.html">Graph Generator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="End%E2%80%90to%E2%80%90End-Testing.html">End to End Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Data-Collection-App.html">Data Collection App</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Github-Actions.html">Github Actions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Using-Mypy.html">Using Mypy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Using-Python%27s-Black-Formatter.html">Using Python’s Black Formatter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Using-Sphinx.html">Using Sphinx</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Using-Flake8.html">Using Flake8</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="RuFaS-Versioning-Policy.html">RuFaS Versioning Policy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SCRUM-at-RuFaS.html">RuFaS Team SCRUM Process</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Release Notes:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="_release_notes/index.html">Release Notes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contributing to RuFaS:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="creating_github_issue.html">Creating a GitHub Issue</a></li>
+<li class="toctree-l1"><a class="reference internal" href="How-to-write-a-design-doc.html">How To Write a Design Doc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Branching-Strategy-in-RuFaS.html">Branching Strategy in RuFaS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Code-review.html">Code Review</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best Practices</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<button @click="showSidebar = false" class="absolute md:hidden right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100" type="button">
+<svg class="h-4 w-4" fill="currentColor" height="24" stroke="none" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 632 284 828q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536 576l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480 632Z"></path>
+</svg>
+</button>
+</aside>
+<main class="relative py-6 lg:gap-10 lg:py-8 xl:grid xl:grid-cols-[1fr_300px]">
+<div class="w-full min-w-0 mx-auto">
+<nav aria-label="breadcrumbs" class="flex items-center mb-4 space-x-1 text-sm text-muted-foreground">
+<a class="overflow-hidden text-ellipsis whitespace-nowrap hover:text-foreground" href="../index.html">
+<span class="hidden md:inline">Ruminant Farm Simulation (RuFaS)  documentation</span>
+<svg aria-label="Home" class="md:hidden" fill="currentColor" height="18" stroke="none" viewbox="0 96 960 960" width="18" xmlns="http://www.w3.org/2000/svg">
+<path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
+</svg>
+</a>
+<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Input Manager</span>
+</nav>
+<div id="content" role="main">
+<section id="input-manager">
+<h1>Input Manager<a class="headerlink" href="#input-manager" title="Link to this heading"><span>#</span></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#overview'"><span>#</span></a></h2>
+<p>The Input Manager (IM) serves as an upgrade and update to the previous
+method of input data management in the RuFaS model.</p>
+<p>Previously RuFaS would take its input from a series of json files, csv
+files, and SQLite DBs. This posed a number of challenges for running the
+model under different scenarios and starting conditions. Additionally,
+it suffered from scalability and validation issues.</p>
+<p>The IM addresses these issues with these functionalities and features:</p>
+<ol class="arabic simple">
+<li><p>Differentiation of critical inputs from non-critical inputs.
+Critical inputs are inputs without which the simulation cannot run
+whereas non-critical inputs are inputs which can be fixed on the fly
+should they not exist or are not in the correct form or expected
+conditions.</p></li>
+<li><p>Input data validation to ensure that the structure of the data is
+usable and the values are within predefined ranges and/or follow
+specified patterns.</p></li>
+<li><p>Fixing non-critical data inputs which make validations fail.</p></li>
+<li><p>Terminating a simulation when critical inputs make data validations
+fail.</p></li>
+<li><p>Reporting its activities’ logs to Output Manager’s logs pool.</p></li>
+<li><p>Being the Single Source of Truth (SSOT) for all inputs that RuFaS
+needs. In other words, IM is the entry point to the system and is
+upstream to all other parts of the system (biophysical modules, EEE
+module, Output Manager, etc…).</p></li>
+<li><p>Being vertically scalable.</p></li>
+<li><p>Allowing modification to input data without needing to change the
+code.</p></li>
+<li><p>Allowing integration with different parts of the system (Animal
+Module, Crop and Soil Module, Manure Module, etc…).</p></li>
+<li><p>Allowing sequential runs.</p></li>
+</ol>
+<figure class="align-center" id="rufas-overview">
+<img alt="RuFaS Overview - IM" src="../_images/IM_diagram.png"/>
+<figcaption>
+<p><span class="caption-text">A high-level flow of IM within RuFaS.</span><a class="headerlink" href="#rufas-overview" title="Link to this image"><span>#</span></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="how-does-im-work">
+<h2>How does IM work?<a class="headerlink" href="#how-does-im-work" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-does-im-work'"><span>#</span></a></h2>
+<ol class="arabic simple">
+<li><p>Loads and parses the metadata file(s) specified by Task Manager.</p></li>
+<li><p>Loads and parses input data as instructed by metadata.</p></li>
+<li><p>Performs validation on data as instructed by metadata.</p></li>
+<li><p>For non-critical inputs that have failed the validation step, “fixes”
+these inputs by loading their default values.</p></li>
+<li><p>After validation and fixing, returns a boolean value to indicate
+whether or not the input data was valid.</p></li>
+</ol>
+<figure class="align-center" id="id1">
+<img alt="RuFaS Overview - IM" src="../_images/how_does_IM_work.png"/>
+</figure>
+<section id="input-validation-process-in-im">
+<h3>Input validation process in IM:<a class="headerlink" href="#input-validation-process-in-im" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#input-validation-process-in-im'"><span>#</span></a></h3>
+<figure class="align-center" id="id2">
+<img alt="RuFaS Overview - IM" src="../_images/IM_validation_process.png"/>
+</figure>
+<p>Click
+<a class="reference external" href="https://whimsical.com/input-manager-data-validation-overview-T6TuSktxPUYe3BRUURhaDm">here</a>
+to see enlarged version of this diagram.</p>
+</section>
+<section id="notes">
+<h3>Notes:<a class="headerlink" href="#notes" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#notes'"><span>#</span></a></h3>
+<ul class="simple">
+<li><p>Like Output Manager, Input Manager is a singleton, i.e., only one
+instance of it can exist. After the first instance is created, future
+calls to the constructor method return the first instance. Also, the
+initializer method only works once.</p></li>
+<li><p>During a normal simulation, IM will terminate the data validation
+process as soon as it encounters a critical input that is unfixable
+(i.e. it does not have a default value provided by the metadata). This
+is set by the flag, <code class="docutils literal notranslate"><span class="pre">eager_termination</span></code>, which ensures that users
+are not running simulations with bad data.</p></li>
+<li><p>However, IM’s data validation functionality can be used separate from
+running a simulation. This functionality allows the user to validate
+their input data in toto because <code class="docutils literal notranslate"><span class="pre">eager_termination</span></code> is turned off.
+With <code class="docutils literal notranslate"><span class="pre">eager_termination</span></code> off, the unfixable-critical data is
+catalogued by Output Manager and the user can see a full report of
+their entire set of input data and see which inputs have been fixed
+and for what reason along with which critical inputs are invalid. To
+use this functionality, add the <code class="docutils literal notranslate"><span class="pre">-ov</span></code> (for only validation) flag to
+the command to run the model: <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">main.py</span> <span class="pre">-ov</span></code> For more details
+on this and other gnu arguments that can be used, try
+<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">main.py</span> <span class="pre">-h</span></code> for help or read through the details in the
+forthcoming gnu args section of the RuFaS wiki.</p></li>
+</ul>
+</section>
+</section>
+<section id="getting-data-from-input-manager-s-data-pool">
+<h2>Getting Data from Input Manager’s Data Pool<a class="headerlink" href="#getting-data-from-input-manager-s-data-pool" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#getting-data-from-input-manager-s-data-pool'"><span>#</span></a></h2>
+<p>Input Manager has a single data pool to which all data from all input
+files is loaded. To retrieve the data needed from the Input Manager’s
+data pool:</p>
+<ol class="arabic simple">
+<li><p>Import the InputManager class into the Python file in which you are
+working. <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">RUFAS.input_manager</span> <span class="pre">import</span> <span class="pre">InputManager</span></code></p></li>
+<li><p>Instantiate InputManager (<code class="docutils literal notranslate"><span class="pre">input_manager</span> <span class="pre">=</span> <span class="pre">InputManager()</span></code>) in the
+constructor if possible, or within the static method. <strong>Do not
+initialize InputManager as a global variable, as this can lead to
+unexpected initialization during imports.</strong> Since InputManager is a
+singleton, multiple initializations do not significantly affect
+complexity.</p></li>
+<li><p>Set up a variable to hold the value you want to get from the pool and
+call Input Manager’s <code class="docutils literal notranslate"><span class="pre">get_data()</span></code> method.
+<code class="docutils literal notranslate"><span class="pre">cow_data</span> <span class="pre">=</span> <span class="pre">InputManager.get_data('cow_data')</span></code></p></li>
+<li><p>The user can request as broad or narrow a selection of the data as
+they want. More details on this process can be found in the
+docstrings of the IM’s <code class="docutils literal notranslate"><span class="pre">get_data()</span></code> method:
+<a class="reference external" href="https://github.com/RuminantFarmSystems/RuFaS/blob/main/RUFAS/input_manager.py#L534">https://github.com/RuminantFarmSystems/RuFaS/blob/main/RUFAS/input_manager.py#L534</a></p></li>
+</ol>
+</section>
+<section id="adding-new-input-data-to-be-validated-by-input-manager">
+<h2>Adding New Input Data to be Validated by Input Manager<a class="headerlink" href="#adding-new-input-data-to-be-validated-by-input-manager" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#adding-new-input-data-to-be-validated-by-input-manager'"><span>#</span></a></h2>
+<p>If there is new data that is needed to run a simulation, the data must
+be added to appropriate input file AND all metadata files must be
+updated accordingly to know to expect and how to validate this new input
+data. This means adding the appropriate guidelines for the data (e.g.
+minimum/maximum value, string RegEx pattern, etc.) as well as a default
+value that can be substituted should the provided input value be invalid
+according to the provided validation guidelines. The structure of the
+input data should always match the appropriate metadata properties
+section.</p>
+<p>In the pipeline for IM development:</p>
+<ol class="arabic simple">
+<li><p>IM should provide data sanity check (i.e. corpus validation)
+functionality to ensure that input data collectively makes sense.</p></li>
+<li><p>IM should allow integration with various input streams (files, DBs,
+API calls, etc…).</p></li>
+</ol>
+</section>
+<section id="metadata">
+<h2>Metadata<a class="headerlink" href="#metadata" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#metadata'"><span>#</span></a></h2>
+</section>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#introduction'"><span>#</span></a></h2>
+<p>Metadata is defined as the information that describes and explains data.
+It provides context with details such as the source, type, owner,
+relationships to other data sets. It can also provide guidelines for the
+validity of the data’s values. So, metadata can help to understand the
+relevance of a particular data set and guide people and systems like
+RuFaS on how to use it.</p>
+<p>Both of RUFAS’s IO Managers rely on metadata to function properly. The
+metadata for OutputManager describes what and how output streams should
+be populated.</p>
+<p>For InputManager, the metadata:</p>
+<ol class="arabic simple">
+<li><p>Distinguishes critical inputs from non-critical inputs.</p></li>
+<li><p>Describes the data validation rules.</p></li>
+<li><p>Supplies default values for critical inputs.</p></li>
+</ol>
+<p>RuFaS relies on metadata for handling inputs to be able to successfully
+run simulations.</p>
+<p>The majority of the rest of this Wiki page will be dedicated to
+explaining the InputManager’s metadata.</p>
+</section>
+<section id="the-metadata-file-s">
+<h2>The Metadata File(s)<a class="headerlink" href="#the-metadata-file-s" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#the-metadata-file-s'"><span>#</span></a></h2>
+<p>The InputManager’s metadata is stored in JSON format. The JSON format
+provides needed flexibility and compatibility with Python dictionaries
+and API payloads. The metadata also contains pointers to the input data
+needed to run the RuFaS simulation. These data will be validated by the
+rules and guidelines set in that very same metadata.</p>
+<div class="line-block">
+<div class="line">The metadata files are stored within the main input folder within the
+metadata subfolder (RuFaS &gt; input &gt; metadata). Within that subfolder
+there is also a <code class="docutils literal notranslate"><span class="pre">properties</span></code> directory that contains one or more
+metadata properties files.</div>
+<div class="line">The input files to which the metadata points are currently stored
+within the same input folder but within the data subfolder (RuFaS &gt;
+input &gt; data). These subfolders are further subdivided into folders
+that closely mimic the structure of the codebase (animal, field, soil,
+manure storage and handling, etc). It is important to note: this
+file-directory structure is only how things are set up right now. The
+metadata is ambivalent to the sources and locations of the input data
+so long as the paths pointing to the data are up to date. The metadata
+is also capable of pointing to input sources that are not file-based
+such as API-payloads.</div>
+</div>
+</section>
+<section id="metadata-blobs">
+<h2>Metadata Blobs<a class="headerlink" href="#metadata-blobs" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#metadata-blobs'"><span>#</span></a></h2>
+<p>The metadata structure consists of 3 main blobs - “files”, “properties”,
+and “cross-validation”.</p>
+<section id="the-files-blob">
+<h3>The “files” blob<a class="headerlink" href="#the-files-blob" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#the-files-blob'"><span>#</span></a></h3>
+<p>This blob is broken into sub-blobs closely mimicking the structure of
+the codebase.</p>
+<p>Each “files” sub-blob contains:</p>
+<ul class="simple">
+<li><p>The path to the required input source needed to run the simulation as
+described by that metadata.</p></li>
+<li><p>The format for that input source.</p></li>
+<li><p>The title and description of the sub-blob.</p></li>
+<li><p>The name of the properties sub-blob within the metadata which contains
+the validation information for the input source of this “files”
+sub-blob.</p></li>
+</ul>
+<p>Template “files”-blob structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"data_entry"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"title"</span><span class="p">:</span> <span class="s2">"&lt;title-optional&gt;"</span><span class="p">,</span>
+</span><span id="line-3">  <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"&lt;description-optional&gt;"</span><span class="p">,</span>
+</span><span id="line-4">  <span class="s2">"path"</span><span class="p">:</span> <span class="s2">"&lt;path to the corresponding file&gt;"</span><span class="p">,</span>
+</span><span id="line-5">  <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"&lt;either csv or json&gt;"</span><span class="p">,</span>
+</span><span id="line-6">  <span class="s2">"properties"</span><span class="p">:</span> <span class="p">{}</span>
+</span><span id="line-7"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<p>Examples in action:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"files"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">    <span class="s2">"config"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-3">      <span class="s2">"title"</span><span class="p">:</span> <span class="s2">"Config Data"</span><span class="p">,</span>
+</span><span id="line-4">      <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Configuration Information"</span><span class="p">,</span>
+</span><span id="line-5">      <span class="s2">"path"</span><span class="p">:</span> <span class="s2">"input/data/config/multi_crop_config.json"</span><span class="p">,</span>
+</span><span id="line-6">      <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"json"</span><span class="p">,</span>
+</span><span id="line-7">      <span class="s2">"properties"</span><span class="p">:</span> <span class="s2">"config_properties"</span>
+</span><span id="line-8">    <span class="p">},</span>
+</span><span id="line-9">    <span class="s2">"animal"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-10">      <span class="s2">"title"</span><span class="p">:</span> <span class="s2">"Animal data"</span><span class="p">,</span>
+</span><span id="line-11">      <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Animal module specification."</span><span class="p">,</span>
+</span><span id="line-12">      <span class="s2">"path"</span><span class="p">:</span> <span class="s2">"input/data/animal/no_animal.json"</span><span class="p">,</span>
+</span><span id="line-13">      <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"json"</span><span class="p">,</span>
+</span><span id="line-14">      <span class="s2">"properties"</span><span class="p">:</span> <span class="s2">"animal_properties"</span>
+</span><span id="line-15">    <span class="p">},</span>
+</span><span id="line-16"><span class="o">...</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="loading-multiple-properties-files">
+<h3>Loading multiple properties files<a class="headerlink" href="#loading-multiple-properties-files" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#loading-multiple-properties-files'"><span>#</span></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">files</span></code> blob includes a special <code class="docutils literal notranslate"><span class="pre">properties</span></code> entry that points
+to JSON files containing validation rules for every other file entry.
+This entry can reference a single file via <code class="docutils literal notranslate"><span class="pre">path</span></code> or multiple files via
+<code class="docutils literal notranslate"><span class="pre">paths</span></code>. When multiple properties documents are supplied, Input Manager
+loads them in order and merges the resulting dictionaries; if the same
+property key appears in more than one file, the definition in the later
+file overrides the earlier one. The Data Validator checks that the
+<code class="docutils literal notranslate"><span class="pre">path</span></code>/<code class="docutils literal notranslate"><span class="pre">paths</span></code> attribute is a non-empty string or list of strings
+before loading begins and raises errors when a referenced file is missing
+or malformed.</p>
+<p>The default layout keeps these files beside the metadata file under
+<code class="docutils literal notranslate"><span class="pre">input/metadata/properties</span></code>. A typical configuration combines base
+rules with domain-specific extensions:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"title"</span><span class="p">:</span> <span class="s2">"Metadata Properties"</span><span class="p">,</span>
+</span><span id="line-3">  <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"The properties of input data."</span><span class="p">,</span>
+</span><span id="line-4">  <span class="s2">"paths"</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="line-5">    <span class="s2">"input/metadata/properties/default.json"</span><span class="p">,</span>
+</span><span id="line-6">    <span class="s2">"input/metadata/properties/commodity_properties.json"</span>
+</span><span id="line-7">  <span class="p">],</span>
+</span><span id="line-8">  <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"json"</span><span class="p">,</span>
+</span><span id="line-9">  <span class="s2">"properties"</span><span class="p">:</span> <span class="s2">"NA"</span>
+</span><span id="line-10"><span class="p">},</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="the-properties-blob">
+<h3>The “properties” blob<a class="headerlink" href="#the-properties-blob" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#the-properties-blob'"><span>#</span></a></h3>
+<p>This second blob is also broken into sub-blobs. Each sub-blob contains
+the validation guidelines for any input sources that use these set of
+properties. Every input has to correspond to one properties sub-blob.
+This enables the input’s data to be validated and added to the
+InputManager’s data pool. As noted above, input sources can be files
+(JSON or CSV) or API-payloads.</p>
+<p>Within the “properties” blob sub-blobs, the following information is
+available for each piece of data from the corresponding input:</p>
+<ul class="simple">
+<li><p>Data type (broken into 5 main types: number, string, array, boolean,
+object).</p></li>
+<li><p>Description of the field (currently optional but we want this field
+filled out whenever possible).</p></li>
+<li><p>Validation guidelines including maximum, minimum, pattern, default,
+maximum length, minimum length.</p></li>
+</ul>
+<p>The template structure for a CSV formatted input source properties blob:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"column1-title"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-3">    <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"&lt;optional description for this column&gt;"</span><span class="p">,</span>
+</span><span id="line-4">    <span class="o">&lt;</span><span class="n">data</span> <span class="n">description</span> <span class="n">template</span><span class="o">&gt;</span>
+</span><span id="line-5">  <span class="p">}</span>
+</span><span id="line-6"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<p>The template structure for a JSON formatted input source properties
+blob:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">   <span class="s2">"&lt;var name&gt;"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-3">    <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"&lt;an item from list:[number, array, bool, string, –what else?-]&gt;"</span>
+</span><span id="line-4">    <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"&lt;optional description for this variable&gt;"</span><span class="p">,</span>
+</span><span id="line-5">    <span class="o">&lt;</span><span class="n">data</span> <span class="n">description</span> <span class="n">template</span><span class="o">&gt;</span>
+</span><span id="line-6">   <span class="p">}</span>
+</span><span id="line-7"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<p>Additionally the metadata supports the Object datatype. There is no
+validation of the object type in and of itself. Each nested piece of
+data within an object is expected to have its own validation guidelines
+assuming it is not another object type.</p>
+<p>The structure template for an object type in a JSON input source:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">   <span class="s2">"&lt;var name&gt;"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-3">    <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"object"</span>
+</span><span id="line-4">    <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"&lt;optional description for this variable&gt;"</span><span class="p">,</span>
+</span><span id="line-5">     <span class="s2">"&lt;nested var name&gt;"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-6">     <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"&lt;an item from list:[number, array, bool, string, –what else?-]&gt;"</span>
+</span><span id="line-7">     <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"&lt;optional description for this variable&gt;"</span><span class="p">,</span>
+</span><span id="line-8">     <span class="o">&lt;</span><span class="n">data</span> <span class="n">description</span> <span class="n">template</span><span class="o">&gt;</span>
+</span><span id="line-9">     <span class="p">}</span>
+</span><span id="line-10">   <span class="p">}</span>
+</span><span id="line-11"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<p>Validation guidelines are present within each field within the
+“properties” blob sub-blob. These guidelines inform InputManager how to
+validate the data and whether the data being validated is critical or
+non-critical.</p>
+<p>Critical data are data without which the simulation cannot be
+successfully run.</p>
+<p>Critical data are distinguished by having a “default” field present in
+the “properties” blob sub-blob. The “default” value is the value which
+InputManager will replace the value given from the input source if that
+value is determined to be invalid. Non-critical data will not have a
+“default” field.</p>
+<p>InputManager uses the other validation guidelines based on what type of
+data it is. The metadata has been written such that the guidelines set
+what ranges and patterns of values are known to be able to be handleable
+by the RuFaS model. So a value from an input source that fails the
+metadata validation guidelines will be flagged by InputManager.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>data type</p></th>
+<th class="head"><p>minimum</p></th>
+<th class="head"><p>maximum</p></th>
+<th class="head"><p>minimum
+length</p></th>
+<th class="head"><p>maximum
+length</p></th>
+<th class="head"><p>pattern</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>number</p></td>
+<td><p>applicable</p></td>
+<td><p>applicable</p></td>
+<td><p>N/A</p></td>
+<td><p>N/A</p></td>
+<td><p>N/A</p></td>
+</tr>
+<tr class="row-odd"><td><p>string</p></td>
+<td><p>N/A</p></td>
+<td><p>N/A</p></td>
+<td><p>applicable</p></td>
+<td><p>applicable</p></td>
+<td><p>applicable</p></td>
+</tr>
+<tr class="row-even"><td><p>array</p></td>
+<td><p>applicable
+if element
+is
+number*</p></td>
+<td><p>applicable
+if element
+is
+number*</p></td>
+<td><p>applicable
+if element
+is
+string*</p></td>
+<td><p>applicable
+if element
+is
+string*</p></td>
+<td><p>applicable
+if element
+is
+string*</p></td>
+</tr>
+<tr class="row-odd"><td><p>bool</p></td>
+<td><p>N/A</p></td>
+<td><p>N/A</p></td>
+<td><p>N/A</p></td>
+<td><p>N/A</p></td>
+<td><p>N/A</p></td>
+</tr>
+</tbody>
+</table>
+<p>*We validate every single item within the array. Each item will be
+routed to the corresponding data type validation of each element.
+I.e.,if the element is a number, we check min and max.</p>
+<section id="modifiability">
+<h4>Modifiability<a class="headerlink" href="#modifiability" title="Link to this heading"><span>#</span></a></h4>
+<p>The <code class="docutils literal notranslate"><span class="pre">modifiability</span></code> property indicates whether a variable is required
+at initialization and whether it can be modified during runtime. The
+<code class="docutils literal notranslate"><span class="pre">modifiability</span></code> property is a string with three possible options
+(enum):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">"required_and_locked"</span></code>: The variable must be included in the input
+file at initialization and cannot be modified during runtime.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">"required_and_unlocked"</span></code>: The variable must be included in the
+input file at initialization and can be modified during runtime.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">"not_required_and_unlocked"</span></code>: It is optional to include the
+variable in the input file at initialization, and it can be modified
+during runtime.</p>
+<ul>
+<li><p>Note: If a variable with <code class="docutils literal notranslate"><span class="pre">modifiability</span></code> of
+<code class="docutils literal notranslate"><span class="pre">"not_required_and_unlocked"</span></code> is also included in the input, it
+will still be validated against the metadata (and fixed if needed
+and possible). If the <code class="docutils literal notranslate"><span class="pre">modifiability</span></code> of a variable is not
+specified, it will default to <code class="docutils literal notranslate"><span class="pre">"not_required_and_unlocked"</span></code>.</p></li>
+</ul>
+</li>
+</ul>
+<section id="data-validation-during-initialization">
+<h5>Data Validation during Initialization<a class="headerlink" href="#data-validation-during-initialization" title="Link to this heading"><span>#</span></a></h5>
+<p>When validating the input data, the InputManager iterates all the
+variables in the metadata. If a variable’s value is not specified in the
+input data, the InputManager will check its modifiability in the
+metadata.</p>
+<ul class="simple">
+<li><p>If the variable is required upon initialization (modifiability set to
+<code class="docutils literal notranslate"><span class="pre">"required_and_locked"</span></code> or <code class="docutils literal notranslate"><span class="pre">"required_and_unlocked"</span></code>), the
+InputManager will log an error to the OutputManager and raise a
+KeyError to terminate the simulation.</p></li>
+<li><p>If the variable is not required upon initialization (modifiability set
+to <code class="docutils literal notranslate"><span class="pre">"not_required_and_unlocked"</span></code> or no modifiability specified), the
+InputManager will log a warning to the OutputManager and continue the
+data validation process. The InputManager will attempt to fix the
+missing data later on in the process.</p></li>
+</ul>
+</section>
+<section id="adding-data-to-pool-during-runtime">
+<h5>Adding data to pool during Runtime<a class="headerlink" href="#adding-data-to-pool-during-runtime" title="Link to this heading"><span>#</span></a></h5>
+<p>When adding data to the InputManager variable pool during runtime, the
+InputManager checks whether the variable is modifiable before taking any
+action. If the variable is not modifiable during runtime (modifiability
+set to <code class="docutils literal notranslate"><span class="pre">"required_and_locked"</span></code>), the InputManager will refer to the
+<code class="docutils literal notranslate"><span class="pre">eager_termination</span></code> flag for further action:</p>
+<ul class="simple">
+<li><p>If the <code class="docutils literal notranslate"><span class="pre">eager_termination</span></code> flag is set to <code class="docutils literal notranslate"><span class="pre">False</span></code>, the
+InputManager will log a warning to the OutputManager and continue the
+simulation without interruption.</p></li>
+<li><p>If the <code class="docutils literal notranslate"><span class="pre">eager_termination</span></code> flag is set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, the InputManager
+will log an error to the OutputManager and raise a PermissionError to
+terminate the simulation.</p></li>
+</ul>
+<p>Examples of properties blobs in action:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"manure_management_properties"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">      <span class="s2">"manure_management_scenarios"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-3">        <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"array"</span><span class="p">,</span>
+</span><span id="line-4">        <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Manure Management Scenarios -- Add as many different manure scenarios as needed"</span><span class="p">,</span>
+</span><span id="line-5">        <span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-6">          <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"object"</span><span class="p">,</span>
+</span><span id="line-7">          <span class="s2">"scenario_id"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-8">            <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">,</span>
+</span><span id="line-9">            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Scenario ID -- An identification number for livestock enclosures."</span><span class="p">,</span>
+</span><span id="line-10">            <span class="s2">"modifiability"</span><span class="p">:</span> <span class="s2">"required_and_locked"</span><span class="p">,</span>
+</span><span id="line-11">            <span class="s2">"minimum"</span><span class="p">:</span> <span class="mi">0</span>
+</span><span id="line-12">          <span class="p">},</span>
+</span><span id="line-13">          <span class="s2">"bedding_type"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-14">            <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+</span><span id="line-15">            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Bedding Type -- The material used for bedding pack."</span><span class="p">,</span>
+</span><span id="line-16">            <span class="s2">"modifiability"</span><span class="p">:</span> <span class="s2">"required_and_unlocked"</span><span class="p">,</span>
+</span><span id="line-17">            <span class="s2">"pattern"</span><span class="p">:</span> <span class="s2">"^(Sand|Straw|Sawdust|Manure_solids|Other)$"</span>
+</span><span id="line-18">          <span class="p">},</span>
+</span><span id="line-19">          <span class="s2">"manure_handler"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-20">            <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+</span><span id="line-21">            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Manure Handling Method -- Method for cleaning barn alleyways."</span><span class="p">,</span>
+</span><span id="line-22">            <span class="s2">"pattern"</span><span class="p">:</span> <span class="s2">"^(flush system|alley scraper|manual scraping|tillage|manual skid steer scraping|harrowing)$"</span>
+</span><span id="line-23">          <span class="p">},</span>
+</span><span id="line-24">          <span class="s2">"manure_separator"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-25">            <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+</span><span id="line-26">            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Manure Separator Type -- The type of solid-liquid separator equipment to separate coarse fibrous solids/sand"</span><span class="p">,</span>
+</span><span id="line-27">            <span class="s2">"modifiability"</span><span class="p">:</span> <span class="s2">"unrequired_and_unlocked"</span><span class="p">,</span>
+</span><span id="line-28">            <span class="s2">"pattern"</span><span class="p">:</span> <span class="s2">"^(screw press|sand lane|rotary screen|none|other)$"</span>
+</span><span id="line-29">          <span class="p">},</span>
+</span><span id="line-30">          <span class="s2">"manure_treatment_methods"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-31">            <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+</span><span id="line-32">            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Manure Treatment Methods -- Select the Manure Treatment Methods."</span><span class="p">,</span>
+</span><span id="line-33">            <span class="s2">"pattern"</span><span class="p">:</span> <span class="s2">"^(slurry storage underfloor|slurry storage outdoor|open lots|compost bedded pack barn|anaerobic lagoon|anaerobic digestion|other)$"</span>
+</span><span id="line-34">          <span class="p">}</span>
+</span><span id="line-35">        <span class="p">}</span>
+</span><span id="line-36">      <span class="p">},</span>
+</span></code></pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="the-cross-validation-blob">
+<h3>The “cross-validation” blob<a class="headerlink" href="#the-cross-validation-blob" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#the-cross-validation-blob'"><span>#</span></a></h3>
+<p>Cross-validation enforces coherence across fields and files — ensuring that independently valid inputs also make sense when considered together. While individual-field validation in the properties blob can confirm that values are well-formed and within acceptable ranges, it cannot capture relationships between different parts of the input structure.</p>
+<p>Cross-validation fills this gap by validating cross-field dependencies and system-level constraints. For example, verifying that the total number of stalls across all calf pens is at least as large as the number of calves divided by the maximum stocking density requires values from multiple parts of the input tree. These checks ensure that the overall configuration is not just syntactically valid, but operationally realistic and internally consistent, helping prevent subtle configuration errors that could lead to invalid or misleading simulation results.</p>
+<p>The cross-validation configuration is stored in one or more standalone
+JSON files (separate from the main metadata file). Each file contains a
+top-level <code class="docutils literal notranslate"><span class="pre">"cross_validation"</span></code> key whose value is an array of
+<em>validation blocks</em>.</p>
+<p>Cross-validation file paths are registered in the metadata under a
+dedicated <code class="docutils literal notranslate"><span class="pre">cross_validation_file_paths</span></code> entry. Input Manager loads
+every file in that list and runs all blocks from all files in order.</p>
+<section id="structure-of-a-validation-block">
+<h4>Structure of a validation block<a class="headerlink" href="#structure-of-a-validation-block" title="Link to this heading"><span>#</span></a></h4>
+<p>Each block has four top-level keys:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">description</span></code> — human-readable label reported in error logs when
+the block fails.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">aliases</span></code> — maps short local names (used inside this block) to
+actual data addresses or literal constant values.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">apply_when</span></code> <em>(optional)</em> — an array of condition clauses that
+act as a guard: if any clause is not satisfied the entire block is
+skipped and counted as passing.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rules</span></code> — an array of condition clauses that must all be satisfied
+for the block to pass.</p></li>
+</ul>
+<p>Template:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"&lt;human-readable label&gt;"</span><span class="p">,</span>
+</span><span id="line-3">  <span class="s2">"aliases"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-4">    <span class="s2">"variables"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-5">      <span class="s2">"&lt;alias&gt;"</span><span class="p">:</span> <span class="s2">"&lt;dot-separated address in IM pool&gt;"</span>
+</span><span id="line-6">    <span class="p">},</span>
+</span><span id="line-7">    <span class="s2">"constants"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-8">      <span class="s2">"&lt;alias&gt;"</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">literal</span> <span class="n">value</span><span class="o">&gt;</span>
+</span><span id="line-9">    <span class="p">}</span>
+</span><span id="line-10">  <span class="p">},</span>
+</span><span id="line-11">  <span class="s2">"apply_when"</span><span class="p">:</span> <span class="p">[</span> <span class="o">&lt;</span><span class="n">condition</span> <span class="n">clause</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">...</span> <span class="p">],</span>
+</span><span id="line-12">  <span class="s2">"rules"</span><span class="p">:</span>      <span class="p">[</span> <span class="o">&lt;</span><span class="n">condition</span> <span class="n">clause</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">...</span> <span class="p">]</span>
+</span><span id="line-13"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<section id="aliases">
+<h5>Aliases<a class="headerlink" href="#aliases" title="Link to this heading"><span>#</span></a></h5>
+<p>The <code class="docutils literal notranslate"><span class="pre">aliases</span></code> block populates a local <em>alias pool</em> used only while
+evaluating cross validation rules. It has two optional sub-keys:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">variables</span></code> — a mapping of alias name → dot-separated address.
+Input Manager resolves each address against the IM data pool (the
+same pool used by <code class="docutils literal notranslate"><span class="pre">get_data()</span></code>) and stores the result under the
+alias name.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">constants</span></code> — a mapping of alias name → literal value (number,
+string, boolean). No pool lookup is performed; the literal is stored
+as-is.</p></li>
+</ul>
+<p>Only the keys <code class="docutils literal notranslate"><span class="pre">variables</span></code> and <code class="docutils literal notranslate"><span class="pre">constants</span></code> are accepted; any other
+key in <code class="docutils literal notranslate"><span class="pre">aliases</span></code> is treated as an error.</p>
+</section>
+<section id="condition-clauses">
+<h5>Condition clauses<a class="headerlink" href="#condition-clauses" title="Link to this heading"><span>#</span></a></h5>
+<p>Both <code class="docutils literal notranslate"><span class="pre">apply_when</span></code> entries and <code class="docutils literal notranslate"><span class="pre">rules</span></code> entries are <em>condition
+clauses</em>. A condition clause compares a left-hand expression to a
+right-hand expression using a relationship operator:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"left_hand"</span><span class="p">:</span>  <span class="o">&lt;</span><span class="n">expression</span> <span class="n">block</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span id="line-3">  <span class="s2">"right_hand"</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">expression</span> <span class="n">block</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span id="line-4">  <span class="s2">"relationship"</span><span class="p">:</span> <span class="s2">"&lt;operator&gt;"</span>
+</span><span id="line-5"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<p>Supported relationship operators:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Operator</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">equal</span></code></p></td>
+<td><p>LHS == RHS (pairwise when both are lists)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">not_equal</span></code></p></td>
+<td><p>LHS != RHS</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">greater</span></code></p></td>
+<td><p>LHS &gt; RHS (pairwise when both are lists)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">greater_or_equal_to</span></code></p></td>
+<td><p>LHS &gt;= RHS (pairwise when both are lists)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is_of_type</span></code></p></td>
+<td><p>All LHS values match the type string in RHS
+(<code class="docutils literal notranslate"><span class="pre">"string"</span></code>, <code class="docutils literal notranslate"><span class="pre">"integer"</span></code>, <code class="docutils literal notranslate"><span class="pre">"float"</span></code>,
+<code class="docutils literal notranslate"><span class="pre">"boolean"</span></code>, <code class="docutils literal notranslate"><span class="pre">"number"</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">is_null</span></code></p></td>
+<td><p>All LHS values are <code class="docutils literal notranslate"><span class="pre">None</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">regex</span></code></p></td>
+<td><p>LHS value fully matches the RHS regex pattern</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">is_equal_length</span></code></p></td>
+<td><p>LHS and RHS are lists of the same length</p></td>
+</tr>
+</tbody>
+</table>
+<p>When both sides resolve to lists of equal length, comparison operators
+(<code class="docutils literal notranslate"><span class="pre">equal</span></code>, <code class="docutils literal notranslate"><span class="pre">not_equal</span></code>, <code class="docutils literal notranslate"><span class="pre">greater</span></code>, <code class="docutils literal notranslate"><span class="pre">greater_or_equal_to</span></code>) are
+applied pairwise and every pair must pass.</p>
+</section>
+<section id="expression-blocks">
+<h5>Expression blocks<a class="headerlink" href="#expression-blocks" title="Link to this heading"><span>#</span></a></h5>
+<p>Each of <code class="docutils literal notranslate"><span class="pre">left_hand</span></code> and <code class="docutils literal notranslate"><span class="pre">right_hand</span></code> is an <em>expression block</em>.
+Exactly one of the following sub-block types must be present:</p>
+<p><strong>aggregation</strong> — resolves one or more aliases from the pool and
+applies an operation.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"aggregation"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-3">    <span class="s2">"operation"</span><span class="p">:</span> <span class="s2">"&lt;op&gt;"</span><span class="p">,</span>
+</span><span id="line-4">    <span class="s2">"operands"</span><span class="p">:</span>  <span class="p">[</span><span class="s2">"&lt;alias&gt;"</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+</span><span id="line-5">    <span class="s2">"mode"</span><span class="p">:</span>      <span class="s2">"&lt;element_wise | aggregate&gt;"</span>
+</span><span id="line-6">  <span class="p">},</span>
+</span><span id="line-7">  <span class="s2">"save_as"</span><span class="p">:</span> <span class="s2">"&lt;alias&gt;"</span>
+</span><span id="line-8"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">operands</span></code> — non-empty list of alias names to resolve.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">operation</span></code> — aggregation function to apply. Supported operations:
+<code class="docutils literal notranslate"><span class="pre">"no_op"</span></code> (pass through), <code class="docutils literal notranslate"><span class="pre">"sum"</span></code>, <code class="docutils literal notranslate"><span class="pre">"division"</span></code>. When
+<code class="docutils literal notranslate"><span class="pre">operands</span></code> contains more than one entry, <code class="docutils literal notranslate"><span class="pre">operation</span></code> must be
+provided and cannot be <code class="docutils literal notranslate"><span class="pre">"no_op"</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mode</span></code> — required when any resolved operand is a list or dict:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">"element_wise"</span></code> — return the resolved values as-is, one per
+element.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">"aggregate"</span></code> — apply the operation across all elements and
+return a single result.</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>for_each</strong> — iterates over a list of dicts in the alias pool and
+either filters entries or enforces a condition on every entry.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"for_each"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-3">    <span class="s2">"in"</span><span class="p">:</span>               <span class="s2">"&lt;alias for list[dict]&gt;"</span><span class="p">,</span>
+</span><span id="line-4">    <span class="s2">"field"</span><span class="p">:</span>            <span class="s2">"&lt;key within each dict to evaluate&gt;"</span><span class="p">,</span>
+</span><span id="line-5">    <span class="s2">"value_to_compare"</span><span class="p">:</span> <span class="s2">"&lt;alias for scalar comparand&gt;"</span><span class="p">,</span>
+</span><span id="line-6">    <span class="s2">"field_to_compare"</span><span class="p">:</span> <span class="s2">"&lt;key within each dict used as comparand&gt;"</span><span class="p">,</span>
+</span><span id="line-7">    <span class="s2">"relationship"</span><span class="p">:</span>     <span class="s2">"&lt;operator&gt;"</span><span class="p">,</span>
+</span><span id="line-8">    <span class="s2">"mode"</span><span class="p">:</span>             <span class="s2">"&lt;filter | enforce&gt;"</span>
+</span><span id="line-9">  <span class="p">},</span>
+</span><span id="line-10">  <span class="s2">"save_as"</span><span class="p">:</span> <span class="s2">"&lt;alias&gt;"</span>
+</span><span id="line-11"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">in</span></code> — alias that resolves to a <code class="docutils literal notranslate"><span class="pre">list</span></code> of <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">field</span></code> — the dict key whose value is the left-hand comparand for
+each entry.</p></li>
+<li><p>Exactly one of <code class="docutils literal notranslate"><span class="pre">value_to_compare</span></code> or <code class="docutils literal notranslate"><span class="pre">field_to_compare</span></code> must be
+provided:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">value_to_compare</span></code> — alias resolved once from the pool; the same
+value is used as the right-hand comparand for every entry.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">field_to_compare</span></code> — key read from each entry at comparison time.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">relationship</span></code> — one of the supported operators listed above.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mode</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">"filter"</span></code> — returns the subset of entries that satisfy the
+condition.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">"enforce"</span></code> — returns <code class="docutils literal notranslate"><span class="pre">[True]</span></code> when all entries satisfy the
+condition, otherwise <code class="docutils literal notranslate"><span class="pre">[False]</span></code>.</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>save_as</strong> (optional, applies to both block types)</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">"save_as"</span></code> is present on an expression block, the result of that
+expression is written back into the local alias pool under the given
+name. This allows a computed intermediate value to be referenced by
+subsequent expressions within the same block.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"right_hand"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"aggregation"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-3">    <span class="s2">"operation"</span><span class="p">:</span> <span class="s2">"division"</span><span class="p">,</span>
+</span><span id="line-4">    <span class="s2">"operands"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"number_of_calves"</span><span class="p">,</span> <span class="s2">"pen_stocking_density"</span><span class="p">]</span>
+</span><span id="line-5">  <span class="p">},</span>
+</span><span id="line-6">  <span class="s2">"save_as"</span><span class="p">:</span> <span class="s2">"min_num_stalls"</span>
+</span><span id="line-7"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="the-apply-when-guard">
+<h5>The <code class="docutils literal notranslate"><span class="pre">apply_when</span></code> guard<a class="headerlink" href="#the-apply-when-guard" title="Link to this heading"><span>#</span></a></h5>
+<p>When <code class="docutils literal notranslate"><span class="pre">apply_when</span></code> is present, Input Manager evaluates every clause in
+the array before running the <code class="docutils literal notranslate"><span class="pre">rules</span></code>. If any <code class="docutils literal notranslate"><span class="pre">apply_when</span></code> clause is
+<em>not</em> satisfied, the entire block is skipped and treated as passing.
+This is useful for blocks whose rules only make sense under specific
+conditions — for example, a rule that applies only when a pen’s animal
+type is <code class="docutils literal notranslate"><span class="pre">"CALF"</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"apply_when"</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="line-2">  <span class="p">{</span>
+</span><span id="line-3">    <span class="s2">"left_hand"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-4">      <span class="s2">"aggregation"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"operation"</span><span class="p">:</span> <span class="s2">"no_op"</span><span class="p">,</span> <span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"aggregate"</span><span class="p">,</span>
+</span><span id="line-5">                       <span class="s2">"operands"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"pen_animal_type"</span><span class="p">]</span> <span class="p">}</span>
+</span><span id="line-6">    <span class="p">},</span>
+</span><span id="line-7">    <span class="s2">"right_hand"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-8">      <span class="s2">"aggregation"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"operation"</span><span class="p">:</span> <span class="s2">"no_op"</span><span class="p">,</span> <span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"element_wise"</span><span class="p">,</span>
+</span><span id="line-9">                       <span class="s2">"operands"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"calf_pen_type"</span><span class="p">]</span> <span class="p">}</span>
+</span><span id="line-10">    <span class="p">},</span>
+</span><span id="line-11">    <span class="s2">"relationship"</span><span class="p">:</span> <span class="s2">"equal"</span>
+</span><span id="line-12">  <span class="p">}</span>
+</span><span id="line-13"><span class="p">]</span>
+</span></code></pre></div>
+</div>
+</section>
+</section>
+<section id="error-behaviour-and-eager-termination">
+<h4>Error behaviour and <code class="docutils literal notranslate"><span class="pre">eager_termination</span></code><a class="headerlink" href="#error-behaviour-and-eager-termination" title="Link to this heading"><span>#</span></a></h4>
+<p>When a block’s rules fail, Input Manager records the block’s
+<code class="docutils literal notranslate"><span class="pre">description</span></code> in a list of failures. Two termination modes control
+what happens next:</p>
+<ul class="simple">
+<li><p><strong>Eager termination on</strong> (normal simulation): the first failing rule
+inside a block stops evaluation of that block immediately. The first
+failing block stops evaluation of the entire ruleset.</p></li>
+<li><p><strong>Eager termination off</strong> (<code class="docutils literal notranslate"><span class="pre">-ov</span></code> mode): all rules in all blocks are
+evaluated. At the end, if any block failed, Input Manager logs all
+failing block descriptions and returns <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+</ul>
+<p>In both modes, <code class="docutils literal notranslate"><span class="pre">apply_when</span></code> failures are silent — they mean “this
+block does not apply” and are always counted as passing.</p>
+</section>
+<section id="full-example">
+<h4>Full example<a class="headerlink" href="#full-example" title="Link to this heading"><span>#</span></a></h4>
+<p>The following example checks that the total number of stalls in all
+calf pens is sufficient to hold every calf at the configured maximum
+stocking density. The <code class="docutils literal notranslate"><span class="pre">apply_when</span></code> guard ensures the rule is skipped
+if the first pen is not a calf pen:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Number of stalls in calf pen"</span><span class="p">,</span>
+</span><span id="line-3">  <span class="s2">"aliases"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-4">    <span class="s2">"variables"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-5">      <span class="s2">"number_of_calves"</span><span class="p">:</span>    <span class="s2">"animal.herd_information.calf_num"</span><span class="p">,</span>
+</span><span id="line-6">      <span class="s2">"pen_animal_type"</span><span class="p">:</span>     <span class="s2">"animal.pen_information.0.animal_combination"</span><span class="p">,</span>
+</span><span id="line-7">      <span class="s2">"pen_stall_num"</span><span class="p">:</span>       <span class="s2">"animal.pen_information.0.number_of_stalls"</span><span class="p">,</span>
+</span><span id="line-8">      <span class="s2">"pen_stocking_density"</span><span class="p">:</span><span class="s2">"animal.pen_information.0.max_stocking_density"</span>
+</span><span id="line-9">    <span class="p">},</span>
+</span><span id="line-10">    <span class="s2">"constants"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-11">      <span class="s2">"calf_pen_type"</span><span class="p">:</span> <span class="s2">"CALF"</span>
+</span><span id="line-12">    <span class="p">}</span>
+</span><span id="line-13">  <span class="p">},</span>
+</span><span id="line-14">  <span class="s2">"apply_when"</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="line-15">    <span class="p">{</span>
+</span><span id="line-16">      <span class="s2">"left_hand"</span><span class="p">:</span>  <span class="p">{</span> <span class="s2">"aggregation"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"operation"</span><span class="p">:</span> <span class="s2">"no_op"</span><span class="p">,</span>
+</span><span id="line-17">                       <span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"aggregate"</span><span class="p">,</span> <span class="s2">"operands"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"pen_animal_type"</span><span class="p">]</span> <span class="p">}</span> <span class="p">},</span>
+</span><span id="line-18">      <span class="s2">"right_hand"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"aggregation"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"operation"</span><span class="p">:</span> <span class="s2">"no_op"</span><span class="p">,</span>
+</span><span id="line-19">                       <span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"element_wise"</span><span class="p">,</span> <span class="s2">"operands"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"calf_pen_type"</span><span class="p">]</span> <span class="p">}</span> <span class="p">},</span>
+</span><span id="line-20">      <span class="s2">"relationship"</span><span class="p">:</span> <span class="s2">"equal"</span>
+</span><span id="line-21">    <span class="p">}</span>
+</span><span id="line-22">  <span class="p">],</span>
+</span><span id="line-23">  <span class="s2">"rules"</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="line-24">    <span class="p">{</span>
+</span><span id="line-25">      <span class="s2">"left_hand"</span><span class="p">:</span>  <span class="p">{</span> <span class="s2">"aggregation"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"operation"</span><span class="p">:</span> <span class="s2">"sum"</span><span class="p">,</span>
+</span><span id="line-26">                       <span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"aggregate"</span><span class="p">,</span> <span class="s2">"operands"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"pen_stall_num"</span><span class="p">]</span> <span class="p">}</span> <span class="p">},</span>
+</span><span id="line-27">      <span class="s2">"right_hand"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"aggregation"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"operation"</span><span class="p">:</span> <span class="s2">"division"</span><span class="p">,</span>
+</span><span id="line-28">                       <span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"element_wise"</span><span class="p">,</span>
+</span><span id="line-29">                       <span class="s2">"operands"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"number_of_calves"</span><span class="p">,</span> <span class="s2">"pen_stocking_density"</span><span class="p">]</span> <span class="p">},</span>
+</span><span id="line-30">                      <span class="s2">"save_as"</span><span class="p">:</span> <span class="s2">"min_num_stalls"</span> <span class="p">},</span>
+</span><span id="line-31">      <span class="s2">"relationship"</span><span class="p">:</span> <span class="s2">"greater_or_equal_to"</span>
+</span><span id="line-32">    <span class="p">}</span>
+</span><span id="line-33">  <span class="p">]</span>
+</span><span id="line-34"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="decision-tree-flow-diagram">
+<h4>Decision-tree flow diagram<a class="headerlink" href="#decision-tree-flow-diagram" title="Link to this heading"><span>#</span></a></h4>
+<pre class="mermaid" data-zoom-id="id-8e015b5e-91fc-4c0d-84f1-7e85fa599abc">
+        flowchart TD
+    START([start_data_processing]) --&gt; CV[_cross_validate_data]
+
+    subgraph FILE_LOAD ["File Loading"]
+        CV --&gt; LP[load_cross_validation_file_paths]
+        LP --&gt; NULL{file_paths is None?}
+        NULL -- Yes --&gt; SKIP_ALL([Skip CV, return None])
+        NULL -- No --&gt; FCHECK{File exists &amp;\nvalid JSON?}
+        FCHECK -- No --&gt; ERR([Raise FileNotFoundError\nor JSONDecodeError])
+        FCHECK -- Yes --&gt; LOADED[Load list of rulesets]
+    end
+
+    LOADED --&gt; RULESET_LOOP[For each ruleset]
+
+    subgraph ALIAS_SETUP ["Alias Setup"]
+        RULESET_LOOP --&gt; CV_LOOP[For each cross_validation block]
+        CV_LOOP --&gt; HAS_ALIASES{aliases\nblock exists?}
+        HAS_ALIASES -- No --&gt; SKIP_BLOCK[Skip block]
+        HAS_ALIASES -- Yes --&gt; EXTRACT[_extract_target_and_save_block]
+        EXTRACT --&gt; CHECK_KEYS[check_target_and_save_block\nReject unknown section keys]
+        CHECK_KEYS --&gt; SEC_TYPE{Section type?}
+        SEC_TYPE -- variables --&gt; VAR_RESOLVE[Get data from\nInputManager pool\nvia dot_path]
+        SEC_TYPE -- constants --&gt; CONST_RESOLVE[Use literal\nconstant value]
+        VAR_RESOLVE --&gt; ALIAS_POOL[(Populate alias pool)]
+        CONST_RESOLVE --&gt; ALIAS_POOL
+    end
+
+    ALIAS_POOL --&gt; CROSS_VAL[cross_validate_data]
+
+    subgraph APPLY_WHEN ["Apply-When Guard"]
+        CROSS_VAL --&gt; HAS_AW{apply_when\npresent?}
+        HAS_AW -- Yes --&gt; EVAL_AW[_evaluate_condition_clause_array\nfor apply_when]
+        EVAL_AW --&gt; AW_PASS{All conditions\nsatisfied?}
+        AW_PASS -- No --&gt; SKIP_VAL([Skip validation,\nreturn True])
+        AW_PASS -- Yes --&gt; RULES_EVAL
+        HAS_AW -- No --&gt; RULES_EVAL[Evaluate rules array]
+    end
+
+    subgraph RULES_LOOP ["Rules Evaluation Loop"]
+        RULES_EVAL --&gt; EACH_RULE[For each rule in rules]
+        EACH_RULE --&gt; VALIDATE_CLAUSE[_validate_condition_clause\nCheck left_hand, right_hand,\nrelationship present &amp; valid]
+        VALIDATE_CLAUSE --&gt; CLAUSE_OK{Valid?}
+        CLAUSE_OK -- No --&gt; RULE_FALSE([Return False])
+        CLAUSE_OK -- Yes --&gt; EVAL_LHS
+
+        subgraph EXPRESSION ["_evaluate_expression  ·  called for LHS then RHS"]
+            EVAL_LHS[Evaluate left_hand\nexpression] --&gt; EXPR_TYPE_L{block type?}
+
+            EXPR_TYPE_L -- for_each --&gt; FOR_EACH_L[_evaluate_for_each_block]
+            EXPR_TYPE_L -- aggregation --&gt; AGG_L[_evaluate_aggregation_block]
+            EXPR_TYPE_L -- neither --&gt; EXPR_ERR_L([Log error,\nreturn None, False])
+
+            subgraph FOR_EACH_BLOCK ["for_each block"]
+                FOR_EACH_L --&gt; FE_RESOLVE[Resolve source alias\nfrom alias pool]
+                FE_RESOLVE --&gt; FE_SRC_OK{list of dicts?}
+                FE_SRC_OK -- No --&gt; FE_ERR([Log error,\nreturn None, False])
+                FE_SRC_OK -- Yes --&gt; FE_COMP{comparand source?}
+                FE_COMP -- value_to_compare --&gt; FE_SCALAR[Resolve once\nfrom alias pool]
+                FE_COMP -- field_to_compare --&gt; FE_FIELD[Read field from\neach entry at call time]
+                FE_SCALAR --&gt; FE_MODE{mode?}
+                FE_FIELD --&gt; FE_MODE
+                FE_MODE -- filter --&gt; FE_FILTER[Return matching\nsubset of entries]
+                FE_MODE -- enforce --&gt; FE_ENFORCE[True if all entries match,\nFalse if any fail]
+            end
+
+            subgraph AGG_BLOCK ["aggregation block"]
+                AGG_L --&gt; AGG_RESOLVE[Resolve all operands\nfrom alias pool]
+                AGG_RESOLVE --&gt; AGG_COMPLEX{Any operand\nis list or dict?}
+                AGG_COMPLEX -- Yes --&gt; AGG_VALIDATE[Validate:\n≤1 complex operand\nmode key required]
+                AGG_VALIDATE --&gt; AGG_VALID{Valid?}
+                AGG_VALID -- No --&gt; AGG_ERR([Log error,\nreturn None, False])
+                AGG_VALID -- Yes --&gt; AGG_MODE{mode?}
+                AGG_MODE -- element_wise --&gt; AGG_EW[Return values as-is\none result per element]
+                AGG_MODE -- aggregate --&gt; AGG_COLL[Apply operation to list,\nreturn single result]
+                AGG_COMPLEX -- No --&gt; AGG_OP{operation?}
+                AGG_OP -- no_op --&gt; AGG_NOOP[Return operand\nvalues as-is]
+                AGG_OP -- sum / division / etc. --&gt; AGG_SCALAR[Apply operation,\nreturn single result]
+            end
+
+            FE_FILTER --&gt; SAVE_AS_L{save_as\npresent?}
+            FE_ENFORCE --&gt; SAVE_AS_L
+            AGG_EW --&gt; SAVE_AS_L
+            AGG_COLL --&gt; SAVE_AS_L
+            AGG_NOOP --&gt; SAVE_AS_L
+            AGG_SCALAR --&gt; SAVE_AS_L
+
+            SAVE_AS_L -- Yes --&gt; STORE_L[Save result\nto alias pool]
+            SAVE_AS_L -- No --&gt; LHS_DONE([Return result, evaluated])
+            STORE_L --&gt; LHS_DONE
+        end
+
+        LHS_DONE --&gt; EVAL_RHS[Evaluate right_hand\nexpression\n same logic as LHS]
+        EVAL_RHS --&gt; BOTH_OK{Both sides\nevaluated?}
+        BOTH_OK -- No --&gt; RULE_FALSE2([Return False])
+        BOTH_OK -- Yes --&gt; APPLY_REL[Apply relationship function\nto left_hand, right_hand]
+
+        APPLY_REL --&gt; OPERATOR{relationship?}
+        OPERATOR -- equal --&gt; OP_EQ[_evaluate_equal_condition\npairwise if both are lists]
+        OPERATOR -- not_equal --&gt; OP_NEQ[Negate equal result]
+        OPERATOR -- greater --&gt; OP_GT[_evaluate_greater_condition\npairwise if both are lists]
+        OPERATOR -- greater_or_equal_to --&gt; OP_GTE[_evaluate_greater_or_equal_condition\npairwise if both are lists]
+        OPERATOR -- is_of_type --&gt; OP_TYPE[_evaluate_is_type\ncheck all values match type string]
+        OPERATOR -- is_null --&gt; OP_NULL[_evaluate_is_null\nall left-hand values are None?]
+        OPERATOR -- regex --&gt; OP_RE[_evaluate_regex\nre.fullmatch pattern]
+        OPERATOR -- is_equal_length --&gt; OP_LEN[_evaluate_equal_data_length\nboth lists, same length?]
+
+        OP_EQ --&gt; RULE_RESULT{Rule passed?}
+        OP_NEQ --&gt; RULE_RESULT
+        OP_GT --&gt; RULE_RESULT
+        OP_GTE --&gt; RULE_RESULT
+        OP_TYPE --&gt; RULE_RESULT
+        OP_NULL --&gt; RULE_RESULT
+        OP_RE --&gt; RULE_RESULT
+        OP_LEN --&gt; RULE_RESULT
+        RULE_FALSE --&gt; RULE_RESULT
+        RULE_FALSE2 --&gt; RULE_RESULT
+
+        RULE_RESULT -- No, eager_termination --&gt; BREAK([Break loop,\nreturn False])
+        RULE_RESULT -- No, not eager --&gt; TRACK[Track failure,\ncontinue remaining rules]
+        RULE_RESULT -- Yes, more rules --&gt; EACH_RULE
+        RULE_RESULT -- Yes, all done --&gt; RETURN_TRUE([Return True])
+        TRACK --&gt; MORE_RULES{More rules?}
+        MORE_RULES -- Yes --&gt; EACH_RULE
+        MORE_RULES -- No --&gt; RETURN_LAST([Return False\nlast rule failed])
+    end
+
+    BREAK --&gt; MORE_BLOCKS{More blocks?}
+    RETURN_TRUE --&gt; MORE_BLOCKS
+    RETURN_LAST --&gt; MORE_BLOCKS
+    SKIP_BLOCK --&gt; MORE_BLOCKS
+    MORE_BLOCKS -- Yes --&gt; CV_LOOP
+    MORE_BLOCKS -- No --&gt; FINAL{Any blocks\nfailed?}
+    FINAL -- Yes --&gt; FAIL([Log failing block descriptions,\nreturn False])
+    FINAL -- No --&gt; PASS([Return True])
+
+    </pre></section>
+</section>
+</section>
+</section>
+</div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
+<div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] h-full overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
+<ul>
+<li><a :data-current="activeSection === '#overview'" class="reference internal" href="#overview">Overview</a></li>
+<li><a :data-current="activeSection === '#how-does-im-work'" class="reference internal" href="#how-does-im-work">How does IM work?</a><ul>
+<li><a :data-current="activeSection === '#input-validation-process-in-im'" class="reference internal" href="#input-validation-process-in-im">Input validation process in IM:</a></li>
+<li><a :data-current="activeSection === '#notes'" class="reference internal" href="#notes">Notes:</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#getting-data-from-input-manager-s-data-pool'" class="reference internal" href="#getting-data-from-input-manager-s-data-pool">Getting Data from Input Manager’s Data Pool</a></li>
+<li><a :data-current="activeSection === '#adding-new-input-data-to-be-validated-by-input-manager'" class="reference internal" href="#adding-new-input-data-to-be-validated-by-input-manager">Adding New Input Data to be Validated by Input Manager</a></li>
+<li><a :data-current="activeSection === '#metadata'" class="reference internal" href="#metadata">Metadata</a></li>
+<li><a :data-current="activeSection === '#introduction'" class="reference internal" href="#introduction">Introduction</a></li>
+<li><a :data-current="activeSection === '#the-metadata-file-s'" class="reference internal" href="#the-metadata-file-s">The Metadata File(s)</a></li>
+<li><a :data-current="activeSection === '#metadata-blobs'" class="reference internal" href="#metadata-blobs">Metadata Blobs</a><ul>
+<li><a :data-current="activeSection === '#the-files-blob'" class="reference internal" href="#the-files-blob">The “files” blob</a></li>
+<li><a :data-current="activeSection === '#loading-multiple-properties-files'" class="reference internal" href="#loading-multiple-properties-files">Loading multiple properties files</a></li>
+<li><a :data-current="activeSection === '#the-properties-blob'" class="reference internal" href="#the-properties-blob">The “properties” blob</a><ul>
+<li><a :data-current="activeSection === '#modifiability'" class="reference internal" href="#modifiability">Modifiability</a><ul>
+<li><a :data-current="activeSection === '#data-validation-during-initialization'" class="reference internal" href="#data-validation-during-initialization">Data Validation during Initialization</a></li>
+<li><a :data-current="activeSection === '#adding-data-to-pool-during-runtime'" class="reference internal" href="#adding-data-to-pool-during-runtime">Adding data to pool during Runtime</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#the-cross-validation-blob'" class="reference internal" href="#the-cross-validation-blob">The “cross-validation” blob</a><ul>
+<li><a :data-current="activeSection === '#structure-of-a-validation-block'" class="reference internal" href="#structure-of-a-validation-block">Structure of a validation block</a><ul>
+<li><a :data-current="activeSection === '#aliases'" class="reference internal" href="#aliases">Aliases</a></li>
+<li><a :data-current="activeSection === '#condition-clauses'" class="reference internal" href="#condition-clauses">Condition clauses</a></li>
+<li><a :data-current="activeSection === '#expression-blocks'" class="reference internal" href="#expression-blocks">Expression blocks</a></li>
+<li><a :data-current="activeSection === '#the-apply-when-guard'" class="reference internal" href="#the-apply-when-guard">The <code class="docutils literal notranslate"><span class="pre">apply_when</span></code> guard</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#error-behaviour-and-eager-termination'" class="reference internal" href="#error-behaviour-and-eager-termination">Error behaviour and <code class="docutils literal notranslate"><span class="pre">eager_termination</span></code></a></li>
+<li><a :data-current="activeSection === '#full-example'" class="reference internal" href="#full-example">Full example</a></li>
+<li><a :data-current="activeSection === '#decision-tree-flow-diagram'" class="reference internal" href="#decision-tree-flow-diagram">Decision-tree flow diagram</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</aside>
+</main>
+</div>
+</div><footer class="py-6 border-t border-border md:py-0">
+<div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
+<div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, RuFaS team Built with <a class="font-medium underline underline-offset-4" href="https://www.sphinx-doc.org" rel="noreferrer">Sphinx 9.1.0</a></p>
+</div>
+</div>
+</footer>
+</div>
+<script src="../_static/documentation_options.js?v=5929fcd5"></script>
+<script src="../_static/doctools.js?v=fd6eb6e6"></script>
+<script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+<script defer="defer" src="../_static/theme.js?v=5db23cf8"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (true) {
+                                        addZoomToSvgs(d3.selectAll(".mermaid").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (true) {
+        const mermaids_to_add_zoom = -1 === -1 ? mermaids_active.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll(".mermaid").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (true) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
+</body>
+</html>
