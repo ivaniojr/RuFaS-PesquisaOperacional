@@ -3,8 +3,8 @@
     "end_date": "2015:365",
     "set_seed": true,
     "simulation_type": "animals_only",
-    "nutrient_standard": "NRC",
+    "nutrient_standard": "NASEM",
     "FIPS_county_code": 55025,
     "include_detailed_values": false,
-    "optimization_mode": "linear_native"
+    "optimization_mode": "nonlinear"
 }
