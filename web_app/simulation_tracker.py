@@ -324,6 +324,17 @@ def archive_simulation(
     except Exception as e:
         print(f"[SimulationTracker] Aviso ao gerar relatórios PO: {e}")
 
+    # Arquivamento dos Tableaus Simplex (se gerado pelo solver nativo)
+    has_tableaus = False
+    tableaus_src = base_dir / "output" / "tableaus_simplex_latest.json"
+    if tableaus_src.exists():
+        try:
+            if tableaus_src.stat().st_mtime >= start_time.timestamp() - 10:
+                shutil.copy2(tableaus_src, res_dir / "tableaus_simplex.json")
+                has_tableaus = True
+        except Exception as e:
+            print(f"[SimulationTracker] Aviso ao copiar tableaus_simplex_latest.json: {e}")
+
     # 5. Arquivamento de Logs
     if execution_logs:
         try:
@@ -373,6 +384,7 @@ def archive_simulation(
         "simulated_days": cfg.get("total_days", 31),
         "copied_parameters": copied_params,
         "raw_csv_file": latest_csv_path.name if latest_csv_path else None,
+        "has_tableaus": has_tableaus,
         "kpis": kpis
     }
 

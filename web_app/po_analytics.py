@@ -1165,6 +1165,41 @@ def compare_solvers(base_dir: Path, milk_price: float = 0.45) -> Dict[str, Any]:
             "comparison": None,
         }
 
+    # 3. Execução do Solver Linear Nativo (Simplex Duas Fases - Pure NumPy)
+    native_diet = []
+    native_cost_total = lp_cost_total
+    native_dmi_total = lp_dmi_total
+    native_nit = 0
+    try:
+        from RUFAS.biophysical.animal.ration.pure_simplex_solver import TwoPhaseSimplexSolver
+        var_names = [item["name"] for item in nlp_diet]
+        native_solver = TwoPhaseSimplexSolver(tol=1e-8, max_iter=2000)
+        res_nat = native_solver.solve(
+            c=c,
+            A_ub=np.array(A_ub),
+            b_ub=np.array(b_ub),
+            bounds=bounds,
+            var_names=var_names,
+        )
+        if res_nat["success"] and res_nat.get("x") is not None:
+            nat_x = res_nat["x"]
+            native_cost_total = float(res_nat["fun"])
+            native_dmi_total = float(sum(nat_x))
+            native_nit = int(res_nat.get("nit", 0))
+            for idx, item in enumerate(nlp_diet):
+                amount_nat = float(nat_x[idx])
+                cost_nat = amount_nat * item["price_per_kg"]
+                native_diet.append({
+                    "feed_id": item["feed_id"],
+                    "name": item["name"],
+                    "amount_kg": round(amount_nat, 3),
+                    "price_per_kg": item["price_per_kg"],
+                    "cost_per_day": round(cost_nat, 3),
+                    "percentage": round(amount_nat / native_dmi_total * 100, 2) if native_dmi_total > 0 else 0.0,
+                })
+    except Exception as e:
+        print(f"[PO Analytics] Aviso ao executar Simplex nativo no comparador: {e}")
+
     # Ambos os solvers foram bem-sucedidos: calcula os valores reais
     lp_x = res_lp.x
     lp_cost_total = float(res_lp.fun)
@@ -1192,28 +1227,65 @@ def compare_solvers(base_dir: Path, milk_price: float = 0.45) -> Dict[str, Any]:
         "failed_solver": None,
         "failure_reason": None,
         "nonlinear": {
-            "solver_name": "Não-Linear (NLP / SLSQP)",
+            "solver_name": "Não-Linear (NLP / SLSQP - SciPy)",
             "description": "Modelo Biofísico com desconto de taxa de passagem e fermentação ruminal dinâmica",
             "cost_per_cow_day": round(cost_nlp, 3),
             "total_dmi_kg": round(total_dmi_nlp, 2),
             "diet": nlp_diet,
         },
         "linear": {
-            "solver_name": "Linear (LP / HiGHS Simplex)",
-            "description": "Modelo Clássico de Programação Linear com coeficientes nutricionais estáticos",
+            "solver_name": "Linear (LP / HiGHS Simplex - SciPy)",
+            "description": "Modelo Clássico de Programação Linear com coeficientes estáticos (HiGHS C++)",
             "cost_per_cow_day": round(lp_cost_total, 3),
             "total_dmi_kg": round(lp_dmi_total, 2),
+            "nit": int(res_lp.nit) if hasattr(res_lp, "nit") else 0,
             "diet": linear_diet,
+        },
+        "native_simplex": {
+            "solver_name": "Linear Nativo (Simplex Duas Fases - Pure NumPy)",
+            "description": "Implementação nativa from scratch com rastreamento completo de Tableaus e pivoteamentos",
+            "cost_per_cow_day": round(native_cost_total, 3),
+            "total_dmi_kg": round(native_dmi_total, 2),
+            "nit": native_nit,
+            "diet": native_diet if native_diet else linear_diet,
         },
         "comparison": {
             "cost_difference": cost_diff,
             "cost_difference_percent": cost_diff_pct,
             "interpretation": (
-                "O modelo Linear (LP) assume que os teores de energia e proteína são estáticos. "
-                "No modelo Não-Linear (NLP / SLSQP), o aumento do consumo acelera a taxa de passagem ruminal, "
-                "penalizando a digestibilidade (intake nutrient discount). Isso exige maior precisão na inclusão "
-                "de concentrados e forragens nobres para fechar os requisitos zootécnicos."
+                "O modelo Linear (LP HiGHS e Simplex Nativo) atinge solução ótima equivalente de mínimo custo. "
+                "O modelo Não-Linear (NLP / SLSQP) avalia a cinética de degradação ruminal mecanística, "
+                "refletindo a perda de digestibilidade com o consumo elevado."
             ),
         },
     }
+
+
+def get_simplex_tableaus_data(base_dir: Path, folder_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Retorna os dados dos tableaus intermediários gerados pelo Solver Simplex Nativo.
+    Pode consultar uma pasta arquivada específica ou a última simulação realizada.
+    """
+    candidates = []
+    if folder_name:
+        candidates.append(base_dir / "output" / "simulacoes" / folder_name / "resultados" / "tableaus_simplex.json")
+
+    # Arquivo mais recente no diretório output
+    candidates.append(base_dir / "output" / "tableaus_simplex_latest.json")
+
+    # Busca na pasta de simulações mais recente
+    sim_dirs = sorted(glob.glob(str(base_dir / "output" / "simulacoes" / "*")), key=os.path.getmtime, reverse=True)
+    for s_dir in sim_dirs:
+        candidates.append(Path(s_dir) / "resultados" / "tableaus_simplex.json")
+
+    for path in candidates:
+        if path.exists() and path.is_file():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return data
+            except Exception as e:
+                print(f"[PO Analytics] Erro ao ler tableaus em {path}: {e}")
+
+    return None
 

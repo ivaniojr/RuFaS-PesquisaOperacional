@@ -93,6 +93,8 @@ function setupTabs() {
         loadResults();
       } else if (targetId === "tab-po") {
         loadPOAnalytics();
+      } else if (targetId === "tab-tableaus") {
+        loadSimplexTableaus();
       } else if (targetId === "tab-history") {
         loadSimulationHistory();
       }
@@ -373,6 +375,49 @@ function setupEventListeners() {
         btnApplyScenario.disabled = false;
         btnApplyScenario.innerHTML = "💾 Salvar e Aplicar Cenário";
       }
+    });
+  }
+
+  // Tableaus Simplex Event Listeners
+  const btnReloadTab = document.getElementById("btn-reload-tableaus");
+  if (btnReloadTab) btnReloadTab.addEventListener("click", () => loadSimplexTableaus());
+
+  const btnTabFirst = document.getElementById("btn-tableau-first");
+  if (btnTabFirst) btnTabFirst.addEventListener("click", () => { currentTableauIdx = 0; renderCurrentTableau(); });
+
+  const btnTabPrev = document.getElementById("btn-tableau-prev");
+  if (btnTabPrev) btnTabPrev.addEventListener("click", () => {
+    if (currentTableauIdx > 0) { currentTableauIdx--; renderCurrentTableau(); }
+  });
+
+  const btnTabNext = document.getElementById("btn-tableau-next");
+  if (btnTabNext) btnTabNext.addEventListener("click", () => {
+    if (currentTableauIdx < currentTableaus.length - 1) { currentTableauIdx++; renderCurrentTableau(); }
+  });
+
+  const btnTabLast = document.getElementById("btn-tableau-last");
+  if (btnTabLast) btnTabLast.addEventListener("click", () => {
+    if (currentTableaus.length > 0) {
+      currentTableauIdx = currentTableaus.length - 1;
+      renderCurrentTableau();
+    }
+  });
+
+  const tabSlider = document.getElementById("tableau-slider");
+  if (tabSlider) {
+    tabSlider.addEventListener("input", (e) => {
+      currentTableauIdx = parseInt(e.target.value, 10);
+      renderCurrentTableau();
+    });
+  }
+
+  const btnActivateNative = document.getElementById("btn-activate-native-solver");
+  if (btnActivateNative) {
+    btnActivateNative.addEventListener("click", () => {
+      const sel = document.getElementById("select-opt-mode");
+      if (sel) sel.value = "linear_native";
+      switchTab("tab-config");
+      showToast("Solver Linear Nativo ativado! Clique em 'Salvar Parâmetros Gerais' e execute a simulação.", "info", 5000);
     });
   }
 }
@@ -832,6 +877,7 @@ async function checkStatus() {
       if (data.exit_code === 0) {
         loadResults();
         loadPOAnalytics();
+        loadSimplexTableaus();
         if (data.last_archived) {
           displayArchivedNotification(data.last_archived);
         }
@@ -1496,6 +1542,22 @@ async function loadSolverComparison(milkPrice = 0.45) {
       document.getElementById("compare-lp-dmi").textContent = `Consumo: ${lp.total_dmi_kg.toFixed(2)} kg MS/dia`;
     }
 
+    if (document.getElementById("compare-native-cost")) {
+      if (data.native_simplex && data.native_simplex.cost_per_cow_day) {
+        document.getElementById("compare-native-cost").textContent = `$ ${data.native_simplex.cost_per_cow_day.toFixed(3)}`;
+        document.getElementById("compare-native-cost").style.color = "#c084fc";
+      } else {
+        document.getElementById("compare-native-cost").textContent = "$ --";
+      }
+    }
+    if (document.getElementById("compare-native-dmi")) {
+      if (data.native_simplex && data.native_simplex.total_dmi_kg) {
+        document.getElementById("compare-native-dmi").textContent = `Consumo: ${data.native_simplex.total_dmi_kg.toFixed(2)} kg MS/dia (${data.native_simplex.nit || 0} iterações)`;
+      } else {
+        document.getElementById("compare-native-dmi").textContent = "Consumo: -- kg MS/dia";
+      }
+    }
+
     if (document.getElementById("compare-nlp-cost")) {
       document.getElementById("compare-nlp-cost").textContent = `$ ${nlp.cost_per_cow_day.toFixed(3)}`;
       document.getElementById("compare-nlp-cost").style.color = "#f59e0b";
@@ -1858,8 +1920,17 @@ function renderHistoryTable(filterFarmCode = "") {
         </div>
         <div style="color: #cbd5e1; margin-top: 2px;">
           <span style="color: var(--text-dim);">Solver:</span> 
-          <span class="badge" style="padding: 2px 7px; font-size: 11px; background: ${sim.optimization_mode === 'linear' ? 'rgba(59, 130, 246, 0.18)' : 'rgba(16, 185, 129, 0.18)'}; color: ${sim.optimization_mode === 'linear' ? '#60a5fa' : '#34d399'}; font-weight: 600;">
-            ${sim.optimization_mode === 'linear' ? 'LP (HiGHS)' : 'NLP (SLSQP)'}
+          <span class="badge" style="padding: 2px 7px; font-size: 11px; background: ${
+            sim.optimization_mode === 'linear_native' ? 'rgba(168, 85, 247, 0.22)' :
+            sim.optimization_mode === 'linear' ? 'rgba(59, 130, 246, 0.18)' : 'rgba(16, 185, 129, 0.18)'
+          }; color: ${
+            sim.optimization_mode === 'linear_native' ? '#c084fc' :
+            sim.optimization_mode === 'linear' ? '#60a5fa' : '#34d399'
+          }; font-weight: 600;">
+            ${
+              sim.optimization_mode === 'linear_native' ? 'LP Nativo (Simplex)' :
+              sim.optimization_mode === 'linear' ? 'LP (HiGHS)' : 'NLP (SLSQP)'
+            }
           </span>
           <span style="color: var(--text-dim); margin-left: 6px;">Padrão:</span> 
           <span style="color: #cbd5e1; font-weight: 500;">${sim.nutrient_standard || 'NASEM'}</span>
@@ -1882,6 +1953,11 @@ function renderHistoryTable(filterFarmCode = "") {
           <button class="btn btn-secondary btn-sm" onclick="openArchiveFolder('${sim.folder_name}')" title="Abre a pasta da simulação no explorador de arquivos" style="padding: 6px 12px; font-size: 12px; font-weight: 500; width: 100%; border-color: rgba(148, 163, 184, 0.3);">
             📂 Abrir Pasta
           </button>
+          ${sim.has_tableaus || sim.optimization_mode === 'linear_native' ? `
+            <button class="btn btn-outline btn-sm" onclick="viewTableausForSimulation('${sim.folder_name}')" title="Ver Tableaus do Simplex" style="padding: 4px 8px; font-size: 11px; width: 100%; border-color: rgba(168, 85, 247, 0.5); color: #c084fc;">
+              🧮 Ver Tableaus
+            </button>
+          ` : ''}
           <span style="font-size: 10px; color: var(--text-dim); font-family: monospace; word-break: break-all; max-width: 135px; line-height: 1.2;">
             ${sim.folder_name}
           </span>
@@ -1890,5 +1966,209 @@ function renderHistoryTable(filterFarmCode = "") {
     `;
     tbody.appendChild(tr);
   });
+}
+
+// ==========================================
+// TABLEAUS SIMPLEX MODULE (Passo a Passo)
+// ==========================================
+let currentTableaus = [];
+let currentTableauIdx = 0;
+let currentTableauPayload = null;
+
+async function loadSimplexTableaus(folderName = null) {
+  const container = document.getElementById("tableau-content-container");
+  const notAvail = document.getElementById("tableau-not-available");
+  const notAvailMsg = document.getElementById("tableau-not-available-msg");
+
+  try {
+    const url = folderName ? `/api/po/tableaus?folder=${encodeURIComponent(folderName)}` : `/api/po/tableaus`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data || !data.available || !data.tableaus || data.tableaus.length === 0) {
+      if (container) container.style.display = "none";
+      if (notAvail) {
+        notAvail.style.display = "block";
+        if (data && data.message && notAvailMsg) notAvailMsg.textContent = data.message;
+      }
+      return;
+    }
+
+    if (notAvail) notAvail.style.display = "none";
+    if (container) container.style.display = "block";
+
+    currentTableauPayload = data;
+    currentTableaus = data.tableaus;
+    currentTableauIdx = 0;
+
+    // Atualiza limites do slider
+    const slider = document.getElementById("tableau-slider");
+    if (slider) {
+      slider.min = 0;
+      slider.max = Math.max(0, currentTableaus.length - 1);
+      slider.value = 0;
+    }
+
+    renderCurrentTableau();
+    renderNativeDietSummary(data.diet_summary);
+  } catch (err) {
+    console.error("Erro ao carregar tableaus simplex:", err);
+    showToast("Erro ao carregar tableaus do Simplex: " + err.message, "error");
+  }
+}
+
+function renderCurrentTableau() {
+  if (!currentTableaus || currentTableaus.length === 0) return;
+  if (currentTableauIdx < 0) currentTableauIdx = 0;
+  if (currentTableauIdx >= currentTableaus.length) currentTableauIdx = currentTableaus.length - 1;
+
+  const snap = currentTableaus[currentTableauIdx];
+  const total = currentTableaus.length;
+
+  // Atualiza contadores
+  const lblStep = document.getElementById("lbl-tableau-step");
+  const lblTotal = document.getElementById("lbl-tableau-total");
+  const slider = document.getElementById("tableau-slider");
+  if (lblStep) lblStep.textContent = snap.iteration !== undefined ? snap.iteration : currentTableauIdx;
+  if (lblTotal) lblTotal.textContent = total - 1;
+  if (slider) slider.value = currentTableauIdx;
+
+  // Badge da Fase
+  const badgePhase = document.getElementById("badge-tableau-phase");
+  if (badgePhase) {
+    badgePhase.textContent = snap.phase_name || (snap.phase === 1 ? "Fase 1: Viabilidade" : "Fase 2: Otimização");
+    badgePhase.className = "badge " + (snap.is_final ? "badge-phase-opt" : (snap.phase === 1 ? "badge-phase-1" : "badge-phase-2"));
+  }
+
+  // Cards de diagnóstico
+  const kpiEnter = document.getElementById("kpi-entering-var");
+  const kpiLeave = document.getElementById("kpi-leaving-var");
+  const kpiPivot = document.getElementById("kpi-pivot-val");
+  const kpiObj = document.getElementById("kpi-objective-val");
+
+  if (kpiEnter) kpiEnter.textContent = snap.entering_var || (snap.is_final ? "Ótimo Atingido" : "Nenhuma");
+  if (kpiLeave) kpiLeave.textContent = snap.leaving_var || (snap.is_final ? "Solução Estável" : "Nenhuma");
+  if (kpiPivot) kpiPivot.textContent = snap.pivot_val !== null && snap.pivot_val !== undefined ? snap.pivot_val.toFixed(4) : "--";
+  if (kpiObj) {
+    const prefix = snap.phase === 1 ? "W = " : "Z = $";
+    kpiObj.textContent = snap.objective_value !== undefined ? `${prefix}${snap.objective_value.toFixed(4)}` : "--";
+  }
+
+  // Descrição do passo
+  const descBox = document.getElementById("tableau-description-box");
+  if (descBox) {
+    descBox.innerHTML = `<strong>Passo ${currentTableauIdx + 1} de ${total}:</strong> ${snap.description || "Iteração do Simplex."}`;
+  }
+
+  // Renderiza tabela matricial
+  const thead = document.getElementById("matrix-tableau-thead");
+  const tbody = document.getElementById("matrix-tableau-tbody");
+  const tfoot = document.getElementById("matrix-tableau-tfoot");
+
+  if (!thead || !tbody || !tfoot) return;
+
+  const colNames = snap.col_names || [];
+  const pRow = snap.pivot_row;
+  const pCol = snap.pivot_col;
+
+  // Thead
+  let headerHtml = `<tr>
+    <th style="text-align: left; min-width: 80px; background: #0f172a; padding: 8px 10px;">Base</th>
+    <th style="text-align: left; min-width: 220px; background: #0f172a; padding: 8px 10px;">Restrição Biológica</th>`;
+
+  colNames.forEach((name, cIdx) => {
+    const isPivotCol = cIdx === pCol;
+    headerHtml += `<th style="padding: 8px 10px; min-width: 90px; text-align: right; ${isPivotCol ? 'background: rgba(59, 130, 246, 0.25); color: #93c5fd; border-bottom: 2px solid #3b82f6;' : ''}">
+      ${name}
+    </th>`;
+  });
+
+  headerHtml += `<th style="padding: 8px 10px; min-width: 90px; text-align: right; background: rgba(16, 185, 129, 0.15); color: #34d399;">RHS (b)</th>
+                 <th style="padding: 8px 10px; min-width: 80px; text-align: right; color: var(--text-dim);">Razão</th></tr>`;
+  thead.innerHTML = headerHtml;
+
+  // Tbody
+  let bodyHtml = "";
+  const rows = snap.matrix_rows || [];
+  rows.forEach((row, rIdx) => {
+    const isPivotRow = rIdx === pRow;
+    const rowClass = isPivotRow ? "pivot-row-highlight" : "";
+    bodyHtml += `<tr class="${rowClass}">
+      <td style="text-align: left; font-weight: 700; color: #38bdf8; padding: 6px 10px;">${row.basic_var}</td>
+      <td style="text-align: left; color: #cbd5e1; white-space: nowrap; padding: 6px 10px;">${row.label}</td>`;
+
+    row.coefficients.forEach((val, cIdx) => {
+      const isPivotCell = (rIdx === pRow && cIdx === pCol);
+      const isPivotCol = cIdx === pCol;
+      let cellClass = "";
+      if (isPivotCell) {
+        cellClass = "pivot-cell";
+      } else if (isPivotCol) {
+        cellClass = "pivot-col-highlight";
+      }
+
+      bodyHtml += `<td class="${cellClass}" style="padding: 6px 10px;">${val.toFixed(3)}</td>`;
+    });
+
+    bodyHtml += `<td style="font-weight: 700; color: #f8fafc; padding: 6px 10px; background: rgba(16, 185, 129, 0.08);">${row.rhs.toFixed(3)}</td>`;
+    bodyHtml += `<td style="color: ${row.ratio !== null ? '#fde68a' : 'var(--text-dim)'}; padding: 6px 10px;">${row.ratio !== null ? row.ratio.toFixed(2) : '-'}</td>`;
+    bodyHtml += `</tr>`;
+  });
+  tbody.innerHTML = bodyHtml;
+
+  // Tfoot (Custos Reduzidos)
+  let footHtml = `<tr>
+    <td style="text-align: left; color: #fbbf24; padding: 8px 10px;">Custos</td>
+    <td style="text-align: left; color: #fbbf24; padding: 8px 10px;">Custos Reduzidos (c̄ - z)</td>`;
+
+  const reducedCosts = snap.reduced_costs || [];
+  reducedCosts.forEach((rc, cIdx) => {
+    const isPivotCol = cIdx === pCol;
+    const isNegative = rc < -0.0001;
+    const color = isNegative ? "#f87171" : "#94a3b8";
+    const bg = isPivotCol ? "background: rgba(59, 130, 246, 0.25);" : "";
+    footHtml += `<td style="padding: 8px 10px; text-align: right; color: ${color}; ${bg}; font-weight: 700;">${rc.toFixed(3)}</td>`;
+  });
+
+  const objSymbol = snap.phase === 1 ? "W" : "Z";
+  footHtml += `<td style="padding: 8px 10px; color: #34d399; font-weight: 800;">${objSymbol} = ${snap.objective_value.toFixed(3)}</td>
+               <td></td></tr>`;
+  tfoot.innerHTML = footHtml;
+}
+
+function renderNativeDietSummary(diet) {
+  const tbody = document.getElementById("native-diet-summary-tbody");
+  if (!tbody) return;
+  if (!diet || diet.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim);">Nenhum insumo formulado na dieta.</td></tr>`;
+    return;
+  }
+  let html = "";
+  let totalCost = 0;
+  let totalKg = 0;
+  diet.forEach(item => {
+    totalCost += item.daily_cost || 0;
+    totalKg += item.amount_kg || 0;
+    html += `<tr>
+      <td style="text-align: left; font-weight: 600;">${item.feed_name}</td>
+      <td style="text-align: right;">${item.amount_kg.toFixed(3)}</td>
+      <td style="text-align: right;"><span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">${item.percentage.toFixed(1)}%</span></td>
+      <td style="text-align: right;">$${item.unit_cost.toFixed(3)}</td>
+      <td style="text-align: right; font-weight: 700; color: #34d399;">$${item.daily_cost.toFixed(3)}</td>
+    </tr>`;
+  });
+  html += `<tr style="border-top: 2px solid var(--border); font-weight: 700;">
+    <td style="text-align: left; color: var(--accent);">TOTAL DIETA</td>
+    <td style="text-align: right; color: var(--accent);">${totalKg.toFixed(3)} kg</td>
+    <td style="text-align: right; color: var(--accent);">100.0%</td>
+    <td>-</td>
+    <td style="text-align: right; color: #34d399; font-size: 14px;">$${totalCost.toFixed(3)} /vaca/dia</td>
+  </tr>`;
+  tbody.innerHTML = html;
+}
+
+function viewTableausForSimulation(folderName) {
+  switchTab("tab-tableaus");
+  loadSimplexTableaus(folderName);
 }
 

@@ -585,6 +585,26 @@ def open_simulation_folder_route(folder_name):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/po/tableaus", methods=["GET"])
+def api_po_tableaus():
+    folder_name = request.args.get("folder")
+    try:
+        from web_app.po_analytics import get_simplex_tableaus_data
+        data = get_simplex_tableaus_data(BASE_DIR, folder_name=folder_name)
+        if not data:
+            return jsonify({
+                "available": False,
+                "message": (
+                    "Nenhum registro de tableaus disponível. Os tableaus são gerados passo a passo "
+                    "quando a simulação é executada com o solver 'Linear Nativo (Simplex Duas Fases)'."
+                ),
+                "tableaus": []
+            })
+        data["available"] = True
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"available": False, "error": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=False)
 

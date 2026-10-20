@@ -923,7 +923,14 @@ class RationOptimizer:
         initial_decision_vector = self._check_initial_bounds(bounds, initial_decision_vector)
 
         mode = os.environ.get("RUFAS_OPTIMIZATION_MODE", self.optimization_mode).lower()
-        if mode == "linear":
+        if mode in ["linear_native", "pure_simplex", "simplex_nativo"]:
+            optimized_ration_attempt = self._attempt_native_simplex_optimization(
+                ration_config=ration_config,
+                bounds=bounds,
+                animal_combination=animal_combination,
+                initial_decision_vector=initial_decision_vector,
+            )
+        elif mode in ["linear", "linear_scipy", "highs"]:
             optimized_ration_attempt = self._attempt_linear_optimization(
                 ration_config=ration_config,
                 bounds=bounds,
@@ -1079,6 +1086,190 @@ class RationOptimizer:
             message=res.message,
             fun=float(res.fun),
             nit=int(res.nit),
+        )
+
+    def _attempt_native_simplex_optimization(
+        self,
+        ration_config: RationConfig,
+        bounds: list[tuple[float, float]],
+        animal_combination: AnimalCombination,
+        initial_decision_vector: npt.NDArray[np.float64],
+    ) -> OptimizeResult:
+        """
+        Formulates and solves the least-cost diet problem via pure Two-Phase Simplex
+        implemented from scratch in NumPy (no scipy.optimize.linprog).
+        Records all intermediate tableaus to JSON for visualization.
+        """
+        from RUFAS.biophysical.animal.ration.pure_simplex_solver import TwoPhaseSimplexSolver
+
+        self.set_constraints(ration_config=ration_config)
+        n = len(ration_config.feeds_used)
+        c = np.array(ration_config.price_list, dtype=np.float64)
+
+        var_names = [
+            getattr(feed, "feed_name", None) or f"Insumo_{getattr(feed, 'feed_id', i+1)}"
+            for i, feed in enumerate(ration_config.feeds_used)
+        ]
+
+        A_ub_rows: list[list[float]] = []
+        b_ub_rows: list[float] = []
+        constraint_names: list[str] = []
+
+        # 1. DMI Upper Bound: sum(x) <= DMI_max
+        dmi_max = ration_config.initial_dry_matter_requirement * (1.0 + ration_config.dmi_constraint_fraction)
+        A_ub_rows.append([1.0] * n)
+        b_ub_rows.append(float(dmi_max))
+        constraint_names.append("Consumo Maximo de MS (DMI Max)")
+
+        # 2. DMI Lower Bound: sum(x) >= DMI_min => -sum(x) <= -DMI_min
+        dmi_min = ration_config.initial_dry_matter_requirement * (1.0 - ration_config.dmi_constraint_fraction)
+        A_ub_rows.append([-1.0] * n)
+        b_ub_rows.append(-float(dmi_min))
+        constraint_names.append("Consumo Minimo de MS (DMI Min)")
+
+        # 3. Energy Requirement: -sum(NEL_i * x_i) <= -NE_req
+        req_energy = getattr(ration_config.animal_requirements, "total_energy_requirement", None)
+        if req_energy is None or req_energy <= 0:
+            req_energy = (
+                getattr(ration_config.animal_requirements, "maintenance_energy", 0.0)
+                + getattr(ration_config.animal_requirements, "lactation_energy", 0.0)
+                + getattr(ration_config.animal_requirements, "growth_energy", 0.0)
+            )
+        if req_energy and req_energy > 0:
+            ne_coeffs = []
+            for feed in ration_config.feeds_used:
+                de_val = getattr(feed, "DE", 0.0) or 0.0
+                tdn_val = getattr(feed, "TDN", 0.0) or 0.0
+                if de_val > 0:
+                    nel = de_val * 0.64
+                elif tdn_val > 0:
+                    nel = tdn_val * 0.04409 * 0.64
+                else:
+                    nel = 0.0
+                ne_coeffs.append(-float(nel))
+            A_ub_rows.append(ne_coeffs)
+            b_ub_rows.append(-float(req_energy))
+            constraint_names.append("Energia Liquida Minima (NE)")
+
+        # 4. Metabolizable Protein (MP) Lower Bound: -sum(MP_i * x_i) <= -MP_req (in grams)
+        req_mp = getattr(ration_config.animal_requirements, "metabolizable_protein", 0.0) or 0.0
+        if req_mp > 0:
+            mp_coeffs = []
+            for feed in ration_config.feeds_used:
+                cp_val = getattr(feed, "CP", 0.0) or 0.0
+                mp_coeffs.append(-float(cp_val * 6.5))
+            A_ub_rows.append(mp_coeffs)
+            b_ub_rows.append(-float(req_mp))
+            constraint_names.append("Proteina Metabolizavel Minima (PM Min)")
+
+            # Protein Upper Bound (1.15 * req_mp)
+            mp_upper_coeffs = [float(-val) for val in mp_coeffs]
+            A_ub_rows.append(mp_upper_coeffs)
+            b_ub_rows.append(float(req_mp * 1.15))
+            constraint_names.append("Teto de Proteina Metabolizavel (PM Max 115%)")
+
+        # 5. Calcium (Ca) Lower Bound: -sum(Ca_i * x_i) <= -Ca_req (in grams)
+        req_ca = getattr(ration_config.animal_requirements, "calcium", 0.0) or 0.0
+        if req_ca > 0:
+            ca_coeffs = [-float((getattr(feed, "calcium", 0.0) or 0.0) * 10.0) for feed in ration_config.feeds_used]
+            A_ub_rows.append(ca_coeffs)
+            b_ub_rows.append(-float(req_ca))
+            constraint_names.append("Calcio Minimo (Ca)")
+
+        # 6. Phosphorus (P) Lower Bound: -sum(P_i * x_i) <= -P_req (in grams)
+        req_p = getattr(ration_config.animal_requirements, "phosphorus", 0.0) or 0.0
+        if req_p > 0:
+            p_coeffs = [-float((getattr(feed, "phosphorus", 0.0) or 0.0) * 10.0) for feed in ration_config.feeds_used]
+            A_ub_rows.append(p_coeffs)
+            b_ub_rows.append(-float(req_p))
+            constraint_names.append("Fosforo Minimo (P)")
+
+        # 7. Forage NDF Lower Bound
+        min_fndf = AnimalModuleConstants.MINIMUM_RATION_FORAGE_NDF
+        fndf_coeffs = []
+        for feed in ration_config.feeds_used:
+            is_forage = getattr(feed, "feed_type", None) == FeedComponentType.FORAGE
+            ndf_val = float(getattr(feed, "NDF", 0.0) or 0.0)
+            f_ndf = ndf_val if is_forage else 0.0
+            fndf_coeffs.append(-float(f_ndf - min_fndf))
+        A_ub_rows.append(fndf_coeffs)
+        b_ub_rows.append(0.0)
+        constraint_names.append("FDN Forrageiro Minimo (peNDF)")
+
+        # 8. Maximum Fat (EE) Upper Bound
+        max_fat = AnimalModuleConstants.MAXIMUM_RATION_FAT
+        fat_coeffs = [float((getattr(feed, "EE", 0.0) or 0.0) - max_fat) for feed in ration_config.feeds_used]
+        A_ub_rows.append(fat_coeffs)
+        b_ub_rows.append(0.0)
+        constraint_names.append("Extrato Etereo Maximo (Gordura Max)")
+
+        A_ub = np.array(A_ub_rows, dtype=np.float64)
+        b_ub = np.array(b_ub_rows, dtype=np.float64)
+
+        solver = TwoPhaseSimplexSolver(tol=1e-8, max_iter=2000)
+        res = solver.solve(
+            c=c,
+            A_ub=A_ub,
+            b_ub=b_ub,
+            bounds=bounds,
+            var_names=var_names,
+            constraint_names=constraint_names,
+        )
+
+        # Salvar o log detalhado dos Tableaus em arquivo JSON para a interface gráfica
+        try:
+            import json
+            from pathlib import Path
+            output_tableaus_path = Path("output/tableaus_simplex_latest.json")
+            output_tableaus_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            diet_summary = []
+            if res.get("x") is not None:
+                total_kg = float(np.sum(res["x"]))
+                for i, kg in enumerate(res["x"]):
+                    pct = (float(kg) / total_kg * 100.0) if total_kg > 0 else 0.0
+                    cost_unit = float(c[i])
+                    diet_summary.append({
+                        "feed_name": var_names[i],
+                        "amount_kg": round(float(kg), 3),
+                        "percentage": round(pct, 1),
+                        "unit_cost": cost_unit,
+                        "daily_cost": round(float(kg) * cost_unit, 4),
+                    })
+
+            payload = {
+                "success": bool(res["success"]),
+                "status": int(res.get("status", 0)),
+                "message": str(res["message"]),
+                "fun": float(res.get("fun", 0.0)),
+                "nit": int(res.get("nit", 0)),
+                "total_iterations": len(res.get("tableaus", [])),
+                "var_names": var_names,
+                "diet_summary": diet_summary,
+                "tableaus": res.get("tableaus", []),
+            }
+            with open(output_tableaus_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[RationOptimizer] Erro ao salvar tableaus_simplex_latest.json: {e}")
+
+        if not res["success"]:
+            return OptimizeResult(
+                x=res["x"] if res.get("x") is not None else initial_decision_vector,
+                success=False,
+                status=res.get("status", 2),
+                message=f"Pure Simplex Solver failed: {res['message']}",
+                fun=float(res.get("fun", 0.0)),
+                nit=int(res.get("nit", 0)),
+            )
+
+        return OptimizeResult(
+            x=res["x"],
+            success=True,
+            status=0,
+            message=res["message"],
+            fun=float(res["fun"]),
+            nit=int(res["nit"]),
         )
 
     @staticmethod

@@ -46,6 +46,9 @@
       <button class="tab-btn" data-tab="tab-po">
         <span class="tab-icon">📐</span> Pesquisa Operacional & Sensibilidade
       </button>
+      <button class="tab-btn" data-tab="tab-tableaus">
+        <span class="tab-icon">🧮</span> Tableaus Simplex
+      </button>
       <button class="tab-btn" data-tab="tab-history">
         <span class="tab-icon">📁</span> Histórico de Simulações
       </button>
@@ -88,12 +91,14 @@
             <div class="form-group mt-3">
               <label for="select-opt-mode">Tipo de Otimizador (Pesquisa Operacional)</label>
               <select id="select-opt-mode" class="form-control">
-                <option value="nonlinear">Não-Linear (NLP - SLSQP Biofísico / Padrão RuFaS)</option>
-                <option value="linear">Linear (LP - HiGHS Simplex / Restrições Lineares)</option>
+                <option value="linear_native">Linear Nativo (Simplex Duas Fases - Pure NumPy / Tableaus Passo a Passo)</option>
+                <option value="linear">Linear (LP - HiGHS Simplex / SciPy C++)</option>
+                <option value="nonlinear">Não-Linear (NLP - SLSQP Biofísico / SciPy)</option>
               </select>
               <small class="form-hint">
-                <strong>Linear (LP):</strong> Programação Linear clássica com coeficientes estáticos e método Simplex (HiGHS).<br>
-                <strong>Não-Linear (NLP):</strong> Programação Não-Linear com desconto dinâmico de taxa de passagem ruminal (SLSQP).
+                <strong>Linear Nativo:</strong> Simplex de Duas Fases implementado do zero em Python puro, com rastreamento de tableaus passo a passo na aba "Tableaus Simplex".<br>
+                <strong>Linear (LP HiGHS):</strong> Programação Linear clássica de alto desempenho via biblioteca C++ HiGHS do SciPy.<br>
+                <strong>Não-Linear (NLP SLSQP):</strong> Programação Não-Linear com cinética de digestão ruminal mecanística do RuFaS.
               </small>
             </div>
 
@@ -749,14 +754,22 @@
           <!-- Alerta Visual para Falha de Solvers -->
           <div id="solver-comparison-alert-container" style="display: none; margin-bottom: 20px;"></div>
 
-          <!-- KPI Cards Comparativos -->
-          <div class="kpi-grid">
+          <!-- KPI Cards Comparativos (3 Solvers) -->
+          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));">
             <div class="card kpi-card" style="border-color: rgba(59, 130, 246, 0.4);">
               <span class="kpi-icon">📐</span>
               <div class="kpi-content">
-                <span class="kpi-label">Linear (LP / HiGHS)</span>
+                <span class="kpi-label">Linear (HiGHS SciPy)</span>
                 <h3 id="compare-lp-cost" style="color: #60a5fa;">$ --</h3>
                 <span class="kpi-sub" id="compare-lp-dmi">Consumo: -- kg MS/dia</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="border-color: rgba(168, 85, 247, 0.4);">
+              <span class="kpi-icon">🧮</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Linear Nativo (Simplex 2 Fases)</span>
+                <h3 id="compare-native-cost" style="color: #c084fc;">$ --</h3>
+                <span class="kpi-sub" id="compare-native-dmi">Consumo: -- kg MS/dia</span>
               </div>
             </div>
             <div class="card kpi-card" style="border-color: rgba(245, 158, 11, 0.4);">
@@ -770,7 +783,7 @@
             <div class="card kpi-card" style="border-color: rgba(16, 185, 129, 0.4);">
               <span class="kpi-icon">📊</span>
               <div class="kpi-content">
-                <span class="kpi-label">Diferença de Custo (Δ)</span>
+                <span class="kpi-label">Diferença Linear vs NLP (Δ)</span>
                 <h3 id="compare-cost-diff" style="color: #10b981;">--</h3>
                 <span class="kpi-sub" id="compare-cost-diff-pct">Variação relativa: --</span>
               </div>
@@ -804,6 +817,145 @@
               O modelo <strong>Linear (LP / HiGHS Simplex)</strong> trata os teores nutricionais (energia líquida e proteína metabolizável) como parâmetros constantes independentes do nível de ingestão.
               Já o modelo <strong>Não-Linear (NLP / SLSQP)</strong> incorpora os descontos de digestibilidade da taxa de passagem (*intake discount* do NRC/NASEM 2021): à medida que o animal consome mais matéria seca, o tempo de permanência no rúmen diminui, reduzindo o aproveitamento energético.
             </p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB: Tableaus Simplex (Passo a Passo) -->
+    <main class="tab-content" id="tab-tableaus">
+      <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 26px;">🧮</span>
+              <div>
+                <h2>Tableaus do Método Simplex (Passo a Passo)</h2>
+                <p class="subtitle">Inspeção didática e detalhada de cada iteração da formulação da dieta: variáveis básicas, custos reduzidos, elemento pivô e convergência.</p>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-secondary" id="btn-reload-tableaus" style="font-size: 13px;">
+              🔄 Atualizar Tableaus
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <!-- Aviso quando não há tableaus disponíveis -->
+          <div id="tableau-not-available" style="display: none; text-align: center; padding: 50px 20px;">
+            <span style="font-size: 44px; display: block; margin-bottom: 12px;">⚠️</span>
+            <h3 style="color: var(--text-bright); margin-bottom: 8px;">Nenhum Tableau Registrado para a Simulação Atual</h3>
+            <p id="tableau-not-available-msg" style="color: var(--text-dim); max-width: 650px; margin: 0 auto 20px auto; font-size: 14px; line-height: 1.6;">
+              Os tableaus intermediários passo a passo são gerados quando a dieta é resolvida através do solver <strong>Linear Nativo (Simplex de Duas Fases)</strong>.
+            </p>
+            <button class="btn btn-primary" id="btn-activate-native-solver" style="font-size: 14px;">
+              ⚡ Ativar Solver Linear Nativo e Configurar
+            </button>
+          </div>
+
+          <!-- Container interativo do Tableau -->
+          <div id="tableau-content-container">
+            <!-- Barra de Controles de Navegação -->
+            <div class="tableau-nav-bar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; background: rgba(30, 41, 59, 0.7); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;">
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="btn btn-outline" id="btn-tableau-first" title="Primeiro Tableau" style="padding: 6px 12px; font-size: 13px;">⏮ Início</button>
+                <button class="btn btn-outline" id="btn-tableau-prev" title="Tableau Anterior" style="padding: 6px 12px; font-size: 13px;">◀ Anterior</button>
+                <button class="btn btn-primary" id="btn-tableau-next" title="Próximo Tableau" style="padding: 6px 14px; font-size: 13px;">Próximo ▶</button>
+                <button class="btn btn-outline" id="btn-tableau-last" title="Último Tableau (Ótimo)" style="padding: 6px 12px; font-size: 13px;">Fim ⏭</button>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 14px; flex: 1; max-width: 450px; min-width: 260px;">
+                <span style="font-size: 13px; color: var(--text-dim); white-space: nowrap;">Navegar:</span>
+                <input type="range" id="tableau-slider" min="0" max="0" value="0" style="flex: 1; accent-color: var(--accent); cursor: pointer;">
+                <span style="font-size: 13px; font-weight: 600; white-space: nowrap;">
+                  Passo <span id="lbl-tableau-step" style="color: var(--accent);">0</span> / <span id="lbl-tableau-total">0</span>
+                </span>
+              </div>
+
+              <div>
+                <span id="badge-tableau-phase" class="badge" style="font-size: 12px; padding: 6px 12px; border-radius: 20px; font-weight: 700;">
+                  Fase 1: Viabilidade
+                </span>
+              </div>
+            </div>
+
+            <!-- Diagnóstico da Iteração Atual -->
+            <div class="grid-4col" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+              <div class="kpi-mini-card" style="background: rgba(37, 99, 235, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 12px;">
+                <span style="font-size: 11px; text-transform: uppercase; color: #93c5fd; font-weight: 600; display: block;">⬇️ Variável que Entra</span>
+                <span id="kpi-entering-var" style="font-size: 15px; font-weight: 700; color: #60a5fa; display: block; margin-top: 4px;">--</span>
+              </div>
+              <div class="kpi-mini-card" style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px;">
+                <span style="font-size: 11px; text-transform: uppercase; color: #fca5a5; font-weight: 600; display: block;">⬆️ Variável que Sai</span>
+                <span id="kpi-leaving-var" style="font-size: 15px; font-weight: 700; color: #f87171; display: block; margin-top: 4px;">--</span>
+              </div>
+              <div class="kpi-mini-card" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 12px;">
+                <span style="font-size: 11px; text-transform: uppercase; color: #fde68a; font-weight: 600; display: block;">🎯 Elemento Pivô</span>
+                <span id="kpi-pivot-val" style="font-size: 15px; font-weight: 700; color: #fbbf24; display: block; margin-top: 4px;">--</span>
+              </div>
+              <div class="kpi-mini-card" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px;">
+                <span style="font-size: 11px; text-transform: uppercase; color: #a7f3d0; font-weight: 600; display: block;">📈 Função Objetivo</span>
+                <span id="kpi-objective-val" style="font-size: 15px; font-weight: 700; color: #34d399; display: block; margin-top: 4px;">--</span>
+              </div>
+            </div>
+
+            <!-- Explicação Didática da Ação do Passo -->
+            <div id="tableau-description-box" style="background: rgba(15, 23, 42, 0.8); border-left: 4px solid var(--accent); padding: 12px 16px; border-radius: 6px; margin-bottom: 18px; font-size: 13.5px; color: var(--text-light); line-height: 1.5;">
+              Carregando descrição do passo...
+            </div>
+
+            <!-- Quadro Matricial do Tableau -->
+            <div style="background: #0f172a; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 24px;">
+              <div style="padding: 10px 16px; background: rgba(30, 41, 59, 0.8); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 13px; font-weight: 600; color: var(--text-bright);">
+                  📋 Matriz de Coeficientes & Custos Reduzidos (Tableau Atual)
+                </span>
+                <span style="font-size: 11px; color: var(--text-dim);">
+                  🟡 Célula Pivô &nbsp;|&nbsp; 🔵 Coluna Entrante &nbsp;|&nbsp; 🔴 Linha Sainte
+                </span>
+              </div>
+              <div class="table-container" style="max-height: 520px; overflow-x: auto; overflow-y: auto;">
+                <table class="data-table" id="matrix-tableau-table" style="font-size: 12px; font-family: 'Fira Code', 'Consolas', monospace; text-align: right; border-collapse: collapse; width: 100%;">
+                  <thead id="matrix-tableau-thead" style="position: sticky; top: 0; background: #1e293b; z-index: 2;">
+                    <!-- Colunas geradas dinamicamente via JS -->
+                  </thead>
+                  <tbody id="matrix-tableau-tbody">
+                    <!-- Linhas geradas dinamicamente via JS -->
+                  </tbody>
+                  <tfoot id="matrix-tableau-tfoot" style="position: sticky; bottom: 0; background: #1e293b; font-weight: bold; border-top: 2px solid var(--accent);">
+                    <!-- Linha de Custos Reduzidos gerada via JS -->
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- Resumo da Dieta Calculada pelo Simplex Nativo -->
+            <div class="card" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px;">
+              <div class="card-header" style="padding: 12px 18px;">
+                <h3 style="font-size: 15px; margin: 0; color: var(--text-bright);">🥗 Resumo da Dieta Ótima Formulada (Simplex Nativo)</h3>
+              </div>
+              <div class="card-body" style="padding: 14px 18px;">
+                <div class="table-container">
+                  <table class="data-table" id="native-diet-summary-table">
+                    <thead>
+                      <tr>
+                        <th style="text-align: left;">Ingrediente</th>
+                        <th>Inclusão (kg MS)</th>
+                        <th>Proporção (%)</th>
+                        <th>Custo Unitário ($/kg)</th>
+                        <th>Custo Diário ($/vaca)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="native-diet-summary-tbody">
+                      <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">Aguardando resolução do Simplex...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

@@ -809,4 +809,43 @@ select.form-control {
   display: inline-block;
 }
 
+/* =========================================================
+   TABLEAUS SIMPLEX STYLING
+   ========================================================= */
+.pivot-cell {
+  background-color: #f59e0b !important;
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  border: 2px solid #fbbf24 !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5) !important;
+  border-radius: 4px;
+}
+
+.pivot-col-highlight {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #93c5fd !important;
+}
+
+.pivot-row-highlight {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+
+.badge-phase-1 {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #60a5fa !important;
+  border: 1px solid rgba(59, 130, 246, 0.4) !important;
+}
+
+.badge-phase-2 {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+}
+
+.badge-phase-opt {
+  background: rgba(168, 85, 247, 0.2) !important;
+  color: #c084fc !important;
+  border: 1px solid rgba(168, 85, 247, 0.4) !important;
+}
+
 
