@@ -829,6 +829,7 @@ class SimulationEngine:
         Executes the annual simulation routines.
         """
         for _ in range(self.time.year_start_day, self.time.year_end_day + 1):
+            print(f"Day: {self.time.simulation_day} / {self.time.simulation_length_days}", flush=True)
             self._simulation_type_to_daily_simulation_function[self.simulation_type]()
 
         self._run_post_annual_routines()

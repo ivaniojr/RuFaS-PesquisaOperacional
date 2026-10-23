@@ -250,9 +250,39 @@ def save_config():
         end_year = int(data.get("end_year", 2013))
         end_day = int(data.get("end_day", 31))
         opt_mode = data.get("optimization_mode", "nonlinear").lower()
-        if opt_mode not in ["linear", "nonlinear"]:
+        if opt_mode not in ["linear", "linear_native", "nonlinear", "pure_simplex"]:
             opt_mode = "nonlinear"
         feeds = data.get("feeds", [])
+
+        # Get existing dates from config if not supplied
+        current_cfg = {}
+        cfg_check = BASE_DIR / "input" / "data" / "config" / "example_animals_only_config.json"
+        if cfg_check.exists():
+            try:
+                with open(cfg_check, "r", encoding="utf-8") as f:
+                    current_cfg = json.load(f)
+            except Exception:
+                pass
+
+        def_s_y, def_s_d = 2013, 1
+        def_e_y, def_e_d = 2013, 31
+        if "start_date" in current_cfg:
+            try:
+                p = current_cfg["start_date"].split(":")
+                def_s_y, def_s_d = int(p[0]), int(p[1])
+            except Exception:
+                pass
+        if "end_date" in current_cfg:
+            try:
+                p = current_cfg["end_date"].split(":")
+                def_e_y, def_e_d = int(p[0]), int(p[1])
+            except Exception:
+                pass
+
+        start_year = int(data.get("start_year", def_s_y))
+        start_day = int(data.get("start_day", def_s_d))
+        end_year = int(data.get("end_year", def_e_y))
+        end_day = int(data.get("end_day", def_e_d))
 
         # 1. Update task_manager_metadata.json
         tm_path = BASE_DIR / "input" / "task_manager_metadata.json"
@@ -288,22 +318,25 @@ def save_config():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-def run_simulation_worker():
+def run_simulation_worker(opt_mode_override: str | None = None):
     global sim_state
     sim_start_time = datetime.now()
     try:
         # Pass current optimization mode explicitly in child process environment
         env_vars = os.environ.copy()
         env_vars["RUFAS_SUBPROCESS_TRACKED"] = "1"
-        try:
-            cfg_path = BASE_DIR / "input" / "data" / "config" / "example_animals_only_config.json"
-            if cfg_path.exists():
-                with open(cfg_path, "r", encoding="utf-8") as f:
-                    c_data = json.load(f)
-                    opt_m = c_data.get("optimization_mode", "nonlinear")
-                    env_vars["RUFAS_OPTIMIZATION_MODE"] = str(opt_m).lower()
-        except Exception:
-            pass
+        if opt_mode_override:
+            env_vars["RUFAS_OPTIMIZATION_MODE"] = str(opt_mode_override).lower()
+        else:
+            try:
+                cfg_path = BASE_DIR / "input" / "data" / "config" / "example_animals_only_config.json"
+                if cfg_path.exists():
+                    with open(cfg_path, "r", encoding="utf-8") as f:
+                        c_data = json.load(f)
+                        opt_m = c_data.get("optimization_mode", "nonlinear")
+                        env_vars["RUFAS_OPTIMIZATION_MODE"] = str(opt_m).lower()
+            except Exception:
+                pass
 
         cmd = [str(VENV_PYTHON), "-u", "main.py"]
         process = subprocess.Popen(
@@ -373,6 +406,29 @@ def run_simulation_worker():
 @app.route("/api/run", methods=["POST"])
 def run_simulation():
     global sim_state
+    data = request.json or {}
+    opt_mode_param = data.get("optimization_mode")
+    if opt_mode_param:
+        opt_mode_param = str(opt_mode_param).lower()
+        if opt_mode_param not in ["linear", "linear_native", "nonlinear", "pure_simplex"]:
+            opt_mode_param = None
+        else:
+            # Sincroniza também nos arquivos de configuração locais
+            for cfg_file in [
+                BASE_DIR / "input" / "data" / "config" / "example_animals_only_config.json",
+                BASE_DIR / "input" / "data" / "config" / "example_freestall_config.json"
+            ]:
+                if cfg_file.exists():
+                    try:
+                        with open(cfg_file, "r+", encoding="utf-8") as f:
+                            c_data = json.load(f)
+                            c_data["optimization_mode"] = opt_mode_param
+                            f.seek(0)
+                            json.dump(c_data, f, indent=4)
+                            f.truncate()
+                    except Exception:
+                        pass
+
     with sim_lock:
         if sim_state["running"]:
             return jsonify({"error": "Já existe uma simulação em andamento."}), 400
@@ -385,7 +441,7 @@ def run_simulation():
         sim_state["error"] = None
         sim_state["status_text"] = "Iniciando motor de simulação..."
 
-    t = threading.Thread(target=run_simulation_worker, daemon=True)
+    t = threading.Thread(target=run_simulation_worker, args=(opt_mode_param,), daemon=True)
     t.start()
     return jsonify({"success": True, "message": "Simulação iniciada em segundo plano."})
 
@@ -595,8 +651,9 @@ def api_po_tableaus():
             return jsonify({
                 "available": False,
                 "message": (
-                    "Nenhum registro de tableaus disponível. Os tableaus são gerados passo a passo "
-                    "quando a simulação é executada com o solver 'Linear Nativo (Simplex Duas Fases)'."
+                    "Nenhum registro de tableaus disponível para a simulação selecionada. "
+                    "Os tableaus são gerados passo a passo quando a simulação é executada com o solver "
+                    "'Linear Nativo (Simplex Duas Fases)'."
                 ),
                 "tableaus": []
             })
@@ -604,6 +661,71 @@ def api_po_tableaus():
         return jsonify(data)
     except Exception as e:
         return jsonify({"available": False, "error": str(e)}), 500
+
+@app.route("/api/po/tableaus/simulations", methods=["GET"])
+def get_tableaus_simulations_route():
+    try:
+        all_sims = list_archived_simulations(BASE_DIR)
+        tableau_sims = []
+        for s in all_sims:
+            folder = s.get("folder_name")
+            if not folder:
+                continue
+            t_file = BASE_DIR / "output" / "simulacoes" / folder / "resultados" / "tableaus_simplex.json"
+            if s.get("has_tableaus") or t_file.exists():
+                code = s.get("simulation_code") or folder
+                farm = s.get("farm_name", "Fazenda")
+                date_str = s.get("execution_date", "")
+                time_str = s.get("execution_time", "")
+                dt_formatted = f"{date_str} {time_str}".strip()
+                label = f"{code} ({dt_formatted}) - {farm}"
+                tableau_sims.append({
+                    "folder_name": folder,
+                    "simulation_code": code,
+                    "farm_name": farm,
+                    "execution_date": date_str,
+                    "execution_time": time_str,
+                    "optimization_mode": s.get("optimization_mode", "linear_native"),
+                    "simulated_days": s.get("simulated_days", 31),
+                    "label": label
+                })
+        return jsonify({"simulations": tableau_sims})
+    except Exception as e:
+        return jsonify({"error": str(e), "simulations": []}), 500
+
+@app.route("/api/cows/simulations", methods=["GET"])
+def get_cows_simulations_route():
+    try:
+        from web_app.cows_analytics import get_cows_simulations_and_farms
+        data = get_cows_simulations_and_farms(BASE_DIR)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/cows/scorecard", methods=["GET"])
+def get_cows_scorecard_route():
+    try:
+        from web_app.cows_analytics import get_cows_scorecard
+        folder_name = request.args.get("folder")
+        milk_price = float(request.args.get("milk_price", 0.45))
+        limit_str = request.args.get("limit", "10")
+        limit = -1 if limit_str.lower() in ["all", "todas", "-1"] else int(limit_str)
+        data = get_cows_scorecard(BASE_DIR, folder_name=folder_name, milk_price=milk_price, limit=limit)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"has_results": False, "error": str(e)}), 500
+
+@app.route("/api/cows/detail", methods=["GET"])
+def get_cow_detail_route():
+    try:
+        from web_app.cows_analytics import get_cow_individual_timeseries
+        folder_name = request.args.get("folder", "")
+        cow_id_str = request.args.get("cow_id", "0")
+        cow_id = int(cow_id_str)
+        data = get_cow_individual_timeseries(BASE_DIR, folder_name=folder_name, cow_id=cow_id)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=False)

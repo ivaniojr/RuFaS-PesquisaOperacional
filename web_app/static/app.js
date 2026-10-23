@@ -73,6 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadResults();
   loadPOAnalytics();
   setupEventListeners();
+  setupCowsTab();
   checkStatus();
 });
 
@@ -94,9 +95,11 @@ function setupTabs() {
       } else if (targetId === "tab-po") {
         loadPOAnalytics();
       } else if (targetId === "tab-tableaus") {
-        loadSimplexTableaus();
+        loadTableausSimulationsCombo();
       } else if (targetId === "tab-history") {
         loadSimulationHistory();
+      } else if (targetId === "tab-cows") {
+        loadCowsTab();
       }
     });
   });
@@ -122,8 +125,13 @@ function setupEventListeners() {
     });
   }
 
-  const startSim = () => {
+  const startSim = async () => {
     switchTab("tab-run");
+    try {
+      await saveGeneralConfig();
+    } catch (e) {
+      console.warn("Aviso ao salvar configuração antes da simulação:", e);
+    }
     startSimulation();
   };
 
@@ -379,8 +387,23 @@ function setupEventListeners() {
   }
 
   // Tableaus Simplex Event Listeners
+  const selectTabSim = document.getElementById("select-tableau-sim");
+  if (selectTabSim) {
+    selectTabSim.addEventListener("change", (e) => {
+      const folder = e.target.value;
+      if (folder) {
+        selectedTableauFolder = folder;
+        loadSimplexTableaus(folder);
+      }
+    });
+  }
+
   const btnReloadTab = document.getElementById("btn-reload-tableaus");
-  if (btnReloadTab) btnReloadTab.addEventListener("click", () => loadSimplexTableaus());
+  if (btnReloadTab) {
+    btnReloadTab.addEventListener("click", () => {
+      loadTableausSimulationsCombo(selectedTableauFolder);
+    });
+  }
 
   const btnTabFirst = document.getElementById("btn-tableau-first");
   if (btnTabFirst) btnTabFirst.addEventListener("click", () => { currentTableauIdx = 0; renderCurrentTableau(); });
@@ -814,13 +837,21 @@ async function saveFeedsConfig() {
 // 3. Execution & Simulation Runner
 async function startSimulation() {
   try {
-    const res = await fetch("/api/run", { method: "POST" });
+    const optModeEl = document.getElementById("select-opt-mode");
+    const currentOptMode = optModeEl ? optModeEl.value : "linear";
+
+    const res = await fetch("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ optimization_mode: currentOptMode })
+    });
     const data = await res.json();
     if (data.error) {
       showToast(data.error, "error");
       return;
     }
-    showToast("Simulação iniciada com sucesso!", "info");
+    const modeLabel = currentOptMode === "linear_native" ? "Simplex Nativo" : (currentOptMode === "linear" ? "LP HiGHS" : "Não-Linear");
+    showToast(`Simulação iniciada com sucesso (${modeLabel})!`, "info");
     document.getElementById("console-output").textContent = "";
     document.getElementById("progress-bar").style.width = "0%";
     document.getElementById("progress-percent").textContent = "0%";
@@ -877,7 +908,8 @@ async function checkStatus() {
       if (data.exit_code === 0) {
         loadResults();
         loadPOAnalytics();
-        loadSimplexTableaus();
+        loadTableausSimulationsCombo();
+        loadCowsTab(true);
         if (data.last_archived) {
           displayArchivedNotification(data.last_archived);
         }
@@ -1974,14 +2006,67 @@ function renderHistoryTable(filterFarmCode = "") {
 let currentTableaus = [];
 let currentTableauIdx = 0;
 let currentTableauPayload = null;
+let selectedTableauFolder = null;
+
+async function loadTableausSimulationsCombo(preferredFolder = null) {
+  const selectEl = document.getElementById("select-tableau-sim");
+  if (!selectEl) return;
+
+  try {
+    const res = await fetch("/api/po/tableaus/simulations");
+    const data = await res.json();
+    const sims = (data && data.simulations) ? data.simulations : [];
+
+    selectEl.innerHTML = "";
+
+    if (sims.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "⚠️ Nenhuma simulação com Tableaus encontrada";
+      selectEl.appendChild(opt);
+      await loadSimplexTableaus(null);
+      return;
+    }
+
+    sims.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.folder_name;
+      opt.textContent = s.label || `${s.simulation_code} (${s.execution_date} ${s.execution_time}) - ${s.farm_name}`;
+      selectEl.appendChild(opt);
+    });
+
+    let targetFolder = null;
+    if (preferredFolder && sims.some(s => s.folder_name === preferredFolder)) {
+      targetFolder = preferredFolder;
+    } else if (selectedTableauFolder && sims.some(s => s.folder_name === selectedTableauFolder)) {
+      targetFolder = selectedTableauFolder;
+    } else {
+      targetFolder = sims[0].folder_name;
+    }
+
+    selectEl.value = targetFolder;
+    selectedTableauFolder = targetFolder;
+    await loadSimplexTableaus(targetFolder);
+  } catch (err) {
+    console.error("Erro ao carregar lista de simulações com tableaus:", err);
+    await loadSimplexTableaus(null);
+  }
+}
 
 async function loadSimplexTableaus(folderName = null) {
   const container = document.getElementById("tableau-content-container");
   const notAvail = document.getElementById("tableau-not-available");
   const notAvailMsg = document.getElementById("tableau-not-available-msg");
+  const selectEl = document.getElementById("select-tableau-sim");
+
+  const targetFolder = folderName || (selectEl ? selectEl.value : null);
+  if (targetFolder && selectEl && selectEl.value !== targetFolder) {
+    selectEl.value = targetFolder;
+  }
+  selectedTableauFolder = targetFolder;
 
   try {
-    const url = folderName ? `/api/po/tableaus?folder=${encodeURIComponent(folderName)}` : `/api/po/tableaus`;
+    const url = targetFolder ? `/api/po/tableaus?folder=${encodeURIComponent(targetFolder)}` : `/api/po/tableaus`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -2169,6 +2254,603 @@ function renderNativeDietSummary(diet) {
 
 function viewTableausForSimulation(folderName) {
   switchTab("tab-tableaus");
-  loadSimplexTableaus(folderName);
+  loadTableausSimulationsCombo(folderName);
 }
+
+/* =========================================================
+   FICHA DAS VACAS (COWS SCORECARD) - PESQUISA OPERACIONAL
+   ========================================================= */
+
+let cowsSimulationsData = { farms: [], simulations: [] };
+let selectedCowsFarm = "ALL";
+let currentCowsScorecardData = null;
+let chartCowsComparison = null;
+let chartCowIndividual = null;
+
+function setupCowsTab() {
+  const btnRefresh = document.getElementById("btn-refresh-cows");
+  if (btnRefresh) {
+    btnRefresh.addEventListener("click", () => {
+      loadCowsTab(true);
+    });
+  }
+
+  const selectFarm = document.getElementById("select-cows-farm");
+  if (selectFarm) {
+    selectFarm.addEventListener("change", (e) => {
+      selectedCowsFarm = e.target.value;
+      updateCowsSimulationsDropdown();
+      loadCowsScorecard();
+    });
+  }
+
+  const selectSim = document.getElementById("select-cows-sim");
+  if (selectSim) {
+    selectSim.addEventListener("change", () => {
+      loadCowsScorecard();
+    });
+  }
+
+  const selectLimit = document.getElementById("select-cows-limit");
+  if (selectLimit) {
+    selectLimit.addEventListener("change", () => {
+      loadCowsScorecard();
+    });
+  }
+
+  const inputMilkPrice = document.getElementById("input-cows-milk-price");
+  if (inputMilkPrice) {
+    inputMilkPrice.addEventListener("change", () => {
+      loadCowsScorecard();
+    });
+    inputMilkPrice.addEventListener("keyup", (e) => {
+      if (e.key === "Enter") loadCowsScorecard();
+    });
+  }
+
+  const btnCloseModal = document.getElementById("btn-close-cow-modal");
+  if (btnCloseModal) {
+    btnCloseModal.addEventListener("click", closeCowDetailModal);
+  }
+
+  const modalOverlay = document.getElementById("modal-cow-detail");
+  if (modalOverlay) {
+    modalOverlay.addEventListener("click", (e) => {
+      if (e.target === modalOverlay) closeCowDetailModal();
+    });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeCowDetailModal();
+  });
+}
+
+async function loadCowsTab(forceRefresh = true) {
+  try {
+    const selectFarm = document.getElementById("select-cows-farm");
+    const selectSim = document.getElementById("select-cows-sim");
+    if (!selectSim) return;
+
+    // Busca lista sempre atualizada de simulações e fazendas
+    const res = await fetch("/api/cows/simulations");
+    const data = await res.json();
+
+    if (data && data.simulations) {
+      cowsSimulationsData = data;
+    } else if (Array.isArray(data)) {
+      cowsSimulationsData = { farms: [], simulations: data };
+    }
+
+    // 1. Popula a combo de Fazendas
+    if (selectFarm) {
+      const prevFarmVal = selectedCowsFarm || selectFarm.value || "ALL";
+      selectFarm.innerHTML = "";
+
+      const totalSims = (cowsSimulationsData.simulations || []).length;
+      const optAll = document.createElement("option");
+      optAll.value = "ALL";
+      optAll.textContent = `🏛️ Todas as Fazendas (${totalSims})`;
+      selectFarm.appendChild(optAll);
+
+      const farms = cowsSimulationsData.farms || [];
+      farms.forEach(f => {
+        const opt = document.createElement("option");
+        opt.value = f.farm_code;
+        opt.textContent = `🌾 ${f.farm_name} (${f.count})`;
+        selectFarm.appendChild(opt);
+      });
+
+      // Restaura seleção se ainda válida
+      if (prevFarmVal && (prevFarmVal === "ALL" || farms.some(f => f.farm_code === prevFarmVal))) {
+        selectFarm.value = prevFarmVal;
+        selectedCowsFarm = prevFarmVal;
+      } else {
+        selectFarm.value = "ALL";
+        selectedCowsFarm = "ALL";
+      }
+    }
+
+    // 2. Atualiza a combo de Simulações filtrada pela fazenda atual
+    updateCowsSimulationsDropdown();
+
+    // 3. Carrega o scorecard da simulação selecionada
+    await loadCowsScorecard();
+  } catch (err) {
+    console.error("Erro ao carregar aba Ficha das Vacas:", err);
+  }
+}
+
+function updateCowsSimulationsDropdown(preferredFolder = null) {
+  const selectSim = document.getElementById("select-cows-sim");
+  if (!selectSim) return;
+
+  const currentFolder = preferredFolder || selectSim.value;
+  const allSims = cowsSimulationsData.simulations || [];
+
+  let filtered = allSims;
+  if (selectedCowsFarm && selectedCowsFarm !== "ALL") {
+    filtered = allSims.filter(s => s.farm_code === selectedCowsFarm);
+  }
+
+  selectSim.innerHTML = "";
+  if (filtered.length === 0) {
+    selectSim.innerHTML = `<option value="">Nenhuma simulação para esta fazenda</option>`;
+    return;
+  }
+
+  filtered.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s.folder_name;
+    if (selectedCowsFarm !== "ALL") {
+      opt.textContent = `${s.simulation_code} (${s.execution_date} ${s.execution_time})`;
+    } else {
+      opt.textContent = `${s.simulation_code} — ${s.farm_name} (${s.execution_date} ${s.execution_time})`;
+    }
+    selectSim.appendChild(opt);
+  });
+
+  // Tenta manter a simulação anterior se estiver presente na lista filtrada
+  if (currentFolder && filtered.some(s => s.folder_name === currentFolder)) {
+    selectSim.value = currentFolder;
+  } else {
+    selectSim.selectedIndex = 0;
+  }
+}
+
+async function loadCowsScorecard() {
+  const selectSim = document.getElementById("select-cows-sim");
+  const selectLimit = document.getElementById("select-cows-limit");
+  const inputMilkPrice = document.getElementById("input-cows-milk-price");
+  const badgeStatus = document.getElementById("cows-status-badge");
+
+  const folder = selectSim ? selectSim.value : "";
+  const limit = selectLimit ? selectLimit.value : "10";
+  const milkPrice = inputMilkPrice ? (parseFloat(inputMilkPrice.value) || 0.45) : 0.45;
+
+  const tbodyTop = document.getElementById("table-top-cows-body");
+  const tbodyBottom = document.getElementById("table-bottom-cows-body");
+
+  if (tbodyTop) {
+    tbodyTop.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-dim); padding: 30px;">⏳ Calculando indicadores individuais e ranking das melhores vacas...</td></tr>`;
+  }
+  if (tbodyBottom) {
+    tbodyBottom.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-dim); padding: 30px;">⏳ Calculando indicadores individuais e ranking das piores vacas...</td></tr>`;
+  }
+
+  if (badgeStatus) {
+    badgeStatus.textContent = "Processando dados...";
+    badgeStatus.style.background = "rgba(245, 158, 11, 0.2)";
+    badgeStatus.style.color = "#fbbf24";
+  }
+
+  try {
+    const url = `/api/cows/scorecard?folder=${encodeURIComponent(folder)}&limit=${encodeURIComponent(limit)}&milk_price=${encodeURIComponent(milkPrice)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.has_results) {
+      if (badgeStatus) {
+        badgeStatus.textContent = "Sem dados";
+        badgeStatus.style.background = "rgba(239, 68, 68, 0.2)";
+        badgeStatus.style.color = "#f87171";
+      }
+      const errMsg = data.error || "Não foi possível carregar os dados desta simulação.";
+      if (tbodyTop) tbodyTop.innerHTML = `<tr><td colspan="13" style="text-align: center; color: #f87171; padding: 25px;">⚠️ ${errMsg}</td></tr>`;
+      if (tbodyBottom) tbodyBottom.innerHTML = `<tr><td colspan="13" style="text-align: center; color: #f87171; padding: 25px;">⚠️ ${errMsg}</td></tr>`;
+      return;
+    }
+
+    currentCowsScorecardData = data;
+
+    // Atualiza badge de status
+    if (badgeStatus) {
+      badgeStatus.textContent = `${data.total_cows_evaluated} vacas em lactação avaliadas`;
+      badgeStatus.style.background = "rgba(16, 185, 129, 0.2)";
+      badgeStatus.style.color = "#34d399";
+    }
+
+    // 1. Atualiza Médias Gerais do Rebanho (Herd Benchmarks) no Topo
+    const avg = data.herd_averages || {};
+    const setTxt = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setTxt("kpi-cows-avg-milk", `${avg.avg_milk || 0} kg`);
+    setTxt("kpi-cows-avg-dmi", `${avg.avg_dmi || 0} kg`);
+    setTxt("kpi-cows-avg-cost", `$ ${(avg.avg_feed_cost || 0).toFixed(3)}`);
+    setTxt("kpi-cows-avg-iofc", `$ ${(avg.avg_iofc || 0).toFixed(3)}`);
+    setTxt("kpi-cows-avg-eff", `${(avg.avg_feed_efficiency || 0).toFixed(2)}`);
+    setTxt("kpi-cows-avg-solids", `${avg.avg_fat_pct || 0}% / ${avg.avg_protein_pct || 0}%`);
+    setTxt("kpi-cows-avg-methane", `${avg.avg_methane_g || 0} g/d (${avg.avg_methane_per_kg_milk || 0} g/kg)`);
+    setTxt("kpi-cows-total-count", `${data.total_cows_evaluated || 0} vacas`);
+
+    // 2. Atualiza contadores dos títulos das tabelas
+    const topCount = (data.top_cows || []).length;
+    const botCount = (data.bottom_cows || []).length;
+    const lblTop = document.getElementById("label-top-count");
+    const lblBot = document.getElementById("label-bottom-count");
+    if (lblTop) lblTop.textContent = topCount;
+    if (lblBot) lblBot.textContent = botCount;
+
+    // 3. Renderiza as Tabelas
+    renderCowsTable("table-top-cows-body", data.top_cows || [], true, avg, data.folder_name);
+    renderCowsTable("table-bottom-cows-body", data.bottom_cows || [], false, avg, data.folder_name);
+
+    // 4. Renderiza Gráfico Comparativo
+    renderCowsComparisonChart(avg, data.top_cows || [], data.bottom_cows || []);
+
+  } catch (err) {
+    console.error("Erro ao carregar Ficha das Vacas:", err);
+    if (tbodyTop) tbodyTop.innerHTML = `<tr><td colspan="13" style="text-align: center; color: #f87171; padding: 25px;">Erro de conexão com o servidor.</td></tr>`;
+    if (tbodyBottom) tbodyBottom.innerHTML = `<tr><td colspan="13" style="text-align: center; color: #f87171; padding: 25px;">Erro de conexão com o servidor.</td></tr>`;
+  }
+}
+
+function renderCowsTable(tbodyId, cowsList, isTop, herdAvg, folderName) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+
+  if (!cowsList || cowsList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-dim); padding: 24px;">Nenhuma vaca encontrada nesta categoria.</td></tr>`;
+    return;
+  }
+
+  let html = "";
+  cowsList.forEach((cow, index) => {
+    const rankNum = isTop ? (cow.rank_iofc || (index + 1)) : (cow.rank_bottom || (index + 1));
+    let rankBadge = `#${rankNum}`;
+    if (isTop) {
+      if (rankNum === 1) rankBadge = "🥇 1";
+      else if (rankNum === 2) rankBadge = "🥈 2";
+      else if (rankNum === 3) rankBadge = "🥉 3";
+    }
+
+    const iofcDiff = cow.iofc_diff !== undefined ? cow.iofc_diff : (cow.iofc - (herdAvg.avg_iofc || 0));
+    const iofcPct = cow.iofc_diff_pct !== undefined ? cow.iofc_diff_pct : ((iofcDiff / (herdAvg.avg_iofc || 1)) * 100);
+
+    const isPositive = iofcDiff >= 0;
+    const diffTag = isPositive
+      ? `<span class="diff-pill-pos" title="Margem IOFC acima da média do rebanho">▲ +${iofcPct.toFixed(1)}% (+$${iofcDiff.toFixed(2)})</span>`
+      : `<span class="diff-pill-neg" title="Margem IOFC abaixo da média do rebanho">▼ ${iofcPct.toFixed(1)}% (-$${Math.abs(iofcDiff).toFixed(2)})</span>`;
+
+    const iofcColorClass = isTop ? "iofc-val-top" : "iofc-val-bottom";
+    const dimVal = cow.max_dim || cow.days_milking || "--";
+
+    html += `
+      <tr>
+        <td style="text-align: center; font-weight: 700; color: ${isTop ? '#34d399' : '#fb7185'}; font-size: 13px;">${rankBadge}</td>
+        <td>
+          <span class="badge-cow-id" title="Clique para abrir ficha técnica da Vaca #${cow.cow_id}" onclick="openCowDetailModal('${folderName}', ${cow.cow_id})">
+            🐄 #${cow.cow_id}
+          </span>
+        </td>
+        <td><span class="badge" style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1;">L${cow.parity || 1}</span></td>
+        <td style="color: var(--text-dim); font-size: 12.5px;">${dimVal} d</td>
+        <td style="font-weight: 600; color: #fff;">${cow.avg_milk.toFixed(2)} kg</td>
+        <td style="color: var(--text-muted);">${cow.dmi_kg.toFixed(2)} kg</td>
+        <td style="color: #fbbf24;">$${cow.feed_cost.toFixed(3)}</td>
+        <td style="color: #60a5fa;">$${cow.milk_revenue.toFixed(3)}</td>
+        <td>
+          <span class="iofc-val-highlight ${iofcColorClass}">$${cow.iofc.toFixed(3)}</span>
+        </td>
+        <td>${diffTag}</td>
+        <td>
+          <span class="badge" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4; font-weight: 600;">
+            ${cow.feed_efficiency.toFixed(2)}
+          </span>
+        </td>
+        <td style="font-size: 12px; color: var(--text-dim);">${cow.fat_pct || 0}% / ${cow.protein_pct || 0}%</td>
+        <td style="text-align: center;">
+          <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px; border-color: rgba(59, 130, 246, 0.4); color: #93c5fd;" onclick="openCowDetailModal('${folderName}', ${cow.cow_id})">
+            🔍 Ficha
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function renderCowsComparisonChart(herdAvg, topCows, bottomCows) {
+  const canvas = document.getElementById("chart-cows-comparison");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  // Calcula médias dos grupos
+  const calcMean = (arr, key) => {
+    if (!arr || arr.length === 0) return 0;
+    const sum = arr.reduce((acc, c) => acc + (c[key] || 0), 0);
+    return sum / arr.length;
+  };
+
+  const topAvgIofc = calcMean(topCows, "iofc");
+  const topAvgMilk = calcMean(topCows, "avg_milk");
+  const topAvgCost = calcMean(topCows, "feed_cost");
+
+  const botAvgIofc = calcMean(bottomCows, "iofc");
+  const botAvgMilk = calcMean(bottomCows, "avg_milk");
+  const botAvgCost = calcMean(bottomCows, "feed_cost");
+
+  const herdIofc = herdAvg.avg_iofc || 0;
+  const herdMilk = herdAvg.avg_milk || 0;
+  const herdCost = herdAvg.avg_feed_cost || 0;
+
+  if (chartCowsComparison) chartCowsComparison.destroy();
+
+  chartCowsComparison = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Margem IOFC ($/vaca/dia)", "Produção de Leite (kg/dia)", "Custo da Ração ($/vaca/dia)"],
+      datasets: [
+        {
+          label: `Top ${topCows.length} Melhores Vacas`,
+          data: [topAvgIofc.toFixed(2), topAvgMilk.toFixed(2), topAvgCost.toFixed(2)],
+          backgroundColor: "rgba(16, 185, 129, 0.8)",
+          borderColor: "#10b981",
+          borderWidth: 1.5,
+          borderRadius: 6
+        },
+        {
+          label: "Média Geral do Rebanho",
+          data: [herdIofc.toFixed(2), herdMilk.toFixed(2), herdCost.toFixed(2)],
+          backgroundColor: "rgba(59, 130, 246, 0.8)",
+          borderColor: "#3b82f6",
+          borderWidth: 1.5,
+          borderRadius: 6
+        },
+        {
+          label: `Top ${bottomCows.length} Piores Vacas`,
+          data: [botAvgIofc.toFixed(2), botAvgMilk.toFixed(2), botAvgCost.toFixed(2)],
+          backgroundColor: "rgba(244, 63, 94, 0.8)",
+          borderColor: "#f43f5e",
+          borderWidth: 1.5,
+          borderRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "top",
+          labels: { color: "#cbd5e1", font: { family: "Inter", size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} ${ctx.dataIndex === 1 ? 'kg' : '$'}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#94a3b8", font: { family: "Inter", size: 12 } },
+          grid: { color: "rgba(255, 255, 255, 0.05)" }
+        },
+        y: {
+          ticks: { color: "#94a3b8" },
+          grid: { color: "rgba(255, 255, 255, 0.05)" },
+          title: { display: true, text: "Valor ($ ou kg)", color: "#94a3b8" }
+        }
+      }
+    }
+  });
+}
+
+async function openCowDetailModal(folderName, cowId) {
+  const modal = document.getElementById("modal-cow-detail");
+  if (!modal) return;
+
+  const data = currentCowsScorecardData;
+  const herdAvg = data ? data.herd_averages || {} : {};
+
+  // Localiza a vaca
+  let cowObj = null;
+  if (data) {
+    const all = data._all_cows || [...(data.top_cows || []), ...(data.bottom_cows || [])];
+    cowObj = all.find(c => c.cow_id === cowId);
+  }
+
+  const modalTitle = document.getElementById("modal-cow-id");
+  if (modalTitle) {
+    modalTitle.textContent = `#${cowId} ${cowObj ? `(Paridade ${cowObj.parity || 1})` : ''}`;
+  }
+
+  // Preenche KPIs rápidos da vaca
+  const cardsContainer = document.getElementById("modal-cow-summary-cards");
+  if (cardsContainer && cowObj) {
+    const iofcDiff = cowObj.iofc_diff || (cowObj.iofc - (herdAvg.avg_iofc || 0));
+    const isPos = iofcDiff >= 0;
+    cardsContainer.innerHTML = `
+      <div class="card kpi-card" style="padding: 10px 14px;">
+        <span class="kpi-icon">🥛</span>
+        <div class="kpi-content">
+          <span class="kpi-label">Leite Médio</span>
+          <h3 style="font-size: 18px;">${cowObj.avg_milk.toFixed(2)} kg</h3>
+        </div>
+      </div>
+      <div class="card kpi-card" style="padding: 10px 14px;">
+        <span class="kpi-icon">🌾</span>
+        <div class="kpi-content">
+          <span class="kpi-label">Consumo DMI</span>
+          <h3 style="font-size: 18px;">${cowObj.dmi_kg.toFixed(2)} kg</h3>
+        </div>
+      </div>
+      <div class="card kpi-card" style="padding: 10px 14px;">
+        <span class="kpi-icon">💰</span>
+        <div class="kpi-content">
+          <span class="kpi-label">Custo Ração</span>
+          <h3 style="font-size: 18px; color: var(--accent-amber);">$${cowObj.feed_cost.toFixed(3)}</h3>
+        </div>
+      </div>
+      <div class="card kpi-card" style="padding: 10px 14px;">
+        <span class="kpi-icon">📈</span>
+        <div class="kpi-content">
+          <span class="kpi-label">Margem IOFC</span>
+          <h3 style="font-size: 18px; color: ${isPos ? '#34d399' : '#fb7185'};">$${cowObj.iofc.toFixed(3)}</h3>
+        </div>
+      </div>
+      <div class="card kpi-card" style="padding: 10px 14px;">
+        <span class="kpi-icon">⚖️</span>
+        <div class="kpi-content">
+          <span class="kpi-label">Eficiência</span>
+          <h3 style="font-size: 18px; color: var(--accent-cyan);">${cowObj.feed_efficiency.toFixed(2)}</h3>
+        </div>
+      </div>
+      <div class="card kpi-card" style="padding: 10px 14px;">
+        <span class="kpi-icon">🌿</span>
+        <div class="kpi-content">
+          <span class="kpi-label">Metano CH₄</span>
+          <h3 style="font-size: 18px;">${cowObj.methane_g || (cowObj.dmi_kg * 21.6).toFixed(1)} g</h3>
+        </div>
+      </div>
+    `;
+  }
+
+  // Preenche tabela comparativa individual vs Rebanho
+  const tbodyComp = document.getElementById("modal-cow-comparison-tbody");
+  if (tbodyComp && cowObj) {
+    const makeRow = (label, cowVal, herdVal, unit, isCurrency = false) => {
+      const diff = cowVal - herdVal;
+      const pct = herdVal !== 0 ? ((diff / herdVal) * 100) : 0;
+      const isPos = diff >= 0;
+      const fmt = (v) => isCurrency ? `$ ${v.toFixed(3)}` : `${v.toFixed(2)} ${unit}`;
+      const diffFmt = isCurrency ? `$ ${diff.toFixed(3)}` : `${diff.toFixed(2)} ${unit}`;
+      const pill = isPos
+        ? `<span class="diff-pill-pos">▲ +${pct.toFixed(1)}%</span>`
+        : `<span class="diff-pill-neg">▼ ${pct.toFixed(1)}%</span>`;
+
+      return `
+        <tr>
+          <td><strong>${label}</strong></td>
+          <td style="font-weight: 600; color: #fff;">${fmt(cowVal)}</td>
+          <td style="color: var(--text-muted);">${fmt(herdVal)}</td>
+          <td style="color: ${isPos ? '#34d399' : '#fb7185'};">${isPos ? '+' : ''}${diffFmt}</td>
+          <td>${pill}</td>
+        </tr>
+      `;
+    };
+
+    let compHtml = "";
+    compHtml += makeRow("Margem IOFC (Receita - Ração)", cowObj.iofc, herdAvg.avg_iofc || 0, "", true);
+    compHtml += makeRow("Produção Diária de Leite", cowObj.avg_milk, herdAvg.avg_milk || 0, "kg/dia");
+    compHtml += makeRow("Custo Diário de Ração", cowObj.feed_cost, herdAvg.avg_feed_cost || 0, "", true);
+    compHtml += makeRow("Eficiência Alimentar (Leite/DMI)", cowObj.feed_efficiency, herdAvg.avg_feed_efficiency || 0, "kg/kg");
+    compHtml += makeRow("Consumo de Matéria Seca (DMI)", cowObj.dmi_kg, herdAvg.avg_dmi || 0, "kg MS");
+    compHtml += makeRow("Emissão de Metano Entérico", cowObj.methane_g || 0, herdAvg.avg_methane_g || 0, "g CH₄/dia");
+
+    tbodyComp.innerHTML = compHtml;
+  }
+
+  // Abre modal
+  modal.classList.add("active");
+
+  // Carrega e desenha curva de lactação individual
+  const canvas = document.getElementById("chart-cow-individual-milk");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  if (chartCowIndividual) chartCowIndividual.destroy();
+
+  try {
+    const url = `/api/cows/detail?folder=${encodeURIComponent(folderName)}&cow_id=${encodeURIComponent(cowId)}`;
+    const res = await fetch(url);
+    const detailData = await res.json();
+
+    const timeline = detailData.timeline || [];
+    const labels = timeline.map(t => `Dia ${t.day} (DIM ${t.dim})`);
+    const milkData = timeline.map(t => t.milk_kg);
+    const herdAvgMilkLine = timeline.map(() => herdAvg.avg_milk || 0);
+
+    chartCowIndividual = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: `Produção Vaca #${cowId} (kg/dia)`,
+            data: milkData,
+            borderColor: "#3b82f6",
+            backgroundColor: "rgba(59, 130, 246, 0.1)",
+            borderWidth: 2,
+            fill: true,
+            tension: 0.25,
+            pointRadius: timeline.length > 60 ? 1 : 2
+          },
+          {
+            label: `Média do Rebanho (${herdAvg.avg_milk || 0} kg/dia)`,
+            data: herdAvgMilkLine,
+            borderColor: "rgba(148, 163, 184, 0.6)",
+            borderDash: [5, 5],
+            borderWidth: 1.5,
+            fill: false,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "top",
+            labels: { color: "#cbd5e1", font: { family: "Inter", size: 12 } }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: "#94a3b8",
+              maxTicksLimit: 12,
+              font: { size: 11 }
+            },
+            grid: { color: "rgba(255, 255, 255, 0.05)" }
+          },
+          y: {
+            ticks: { color: "#94a3b8" },
+            grid: { color: "rgba(255, 255, 255, 0.05)" },
+            title: { display: true, text: "kg de Leite / dia", color: "#94a3b8" }
+          }
+        }
+      }
+    });
+
+  } catch (chartErr) {
+    console.error("Erro ao carregar série temporal da vaca:", chartErr);
+  }
+}
+
+function closeCowDetailModal() {
+  const modal = document.getElementById("modal-cow-detail");
+  if (modal) modal.classList.remove("active");
+  if (chartCowIndividual) {
+    chartCowIndividual.destroy();
+    chartCowIndividual = null;
+  }
+}
+
+window.openCowDetailModal = openCowDetailModal;
+window.closeCowDetailModal = closeCowDetailModal;
 

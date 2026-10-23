@@ -665,16 +665,24 @@ class Utility:
         dict[str, Any]
             The filtered dictionary.
         """
+        def safe_match(pattern: str, key: str) -> bool:
+            if pattern == "*":
+                pattern = ".*"
+            try:
+                return bool(re.search(pattern, key))
+            except re.error:
+                return pattern in key
+
         if filter_by_exclusion:
             return {
                 key: dict_to_filter[key]
                 for key in dict_to_filter.keys()
-                if not any(re.search(pattern, key) for pattern in filter_patterns)
+                if not any(safe_match(pattern, key) for pattern in filter_patterns)
             }
         return {
             key: dict_to_filter[key]
             for key in dict_to_filter.keys()
-            if any(re.search(pattern, key) for pattern in filter_patterns)
+            if any(safe_match(pattern, key) for pattern in filter_patterns)
         }
 
     @staticmethod

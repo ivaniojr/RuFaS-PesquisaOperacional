@@ -1165,6 +1165,24 @@ def compare_solvers(base_dir: Path, milk_price: float = 0.45) -> Dict[str, Any]:
             "comparison": None,
         }
 
+    # Ambos os solvers (NLP e LP HiGHS) foram bem-sucedidos: calcula os valores do LP HiGHS
+    lp_x = res_lp.x
+    lp_cost_total = float(res_lp.fun)
+    lp_dmi_total = float(sum(lp_x))
+
+    linear_diet = []
+    for idx, item in enumerate(nlp_diet):
+        amount_lp = float(lp_x[idx])
+        cost_lp = amount_lp * item["price_per_kg"]
+        linear_diet.append({
+            "feed_id": item["feed_id"],
+            "name": item["name"],
+            "amount_kg": round(amount_lp, 3),
+            "price_per_kg": item["price_per_kg"],
+            "cost_per_day": round(cost_lp, 3),
+            "percentage": round(amount_lp / lp_dmi_total * 100, 2) if lp_dmi_total > 0 else 0.0,
+        })
+
     # 3. Execução do Solver Linear Nativo (Simplex Duas Fases - Pure NumPy)
     native_diet = []
     native_cost_total = lp_cost_total
@@ -1199,24 +1217,6 @@ def compare_solvers(base_dir: Path, milk_price: float = 0.45) -> Dict[str, Any]:
                 })
     except Exception as e:
         print(f"[PO Analytics] Aviso ao executar Simplex nativo no comparador: {e}")
-
-    # Ambos os solvers foram bem-sucedidos: calcula os valores reais
-    lp_x = res_lp.x
-    lp_cost_total = float(res_lp.fun)
-    lp_dmi_total = float(sum(lp_x))
-
-    linear_diet = []
-    for idx, item in enumerate(nlp_diet):
-        amount_lp = float(lp_x[idx])
-        cost_lp = amount_lp * item["price_per_kg"]
-        linear_diet.append({
-            "feed_id": item["feed_id"],
-            "name": item["name"],
-            "amount_kg": round(amount_lp, 3),
-            "price_per_kg": item["price_per_kg"],
-            "cost_per_day": round(cost_lp, 3),
-            "percentage": round(amount_lp / lp_dmi_total * 100, 2) if lp_dmi_total > 0 else 0.0,
-        })
 
     # Métricas comparativas
     cost_diff = round(lp_cost_total - cost_nlp, 3)
@@ -1266,26 +1266,45 @@ def get_simplex_tableaus_data(base_dir: Path, folder_name: Optional[str] = None)
     Retorna os dados dos tableaus intermediários gerados pelo Solver Simplex Nativo.
     Pode consultar uma pasta arquivada específica ou a última simulação realizada.
     """
-    candidates = []
-    if folder_name:
-        candidates.append(base_dir / "output" / "simulacoes" / folder_name / "resultados" / "tableaus_simplex.json")
+    if folder_name and folder_name != "latest":
+        candidates = [
+            base_dir / "output" / "simulacoes" / folder_name / "resultados" / "tableaus_simplex.json",
+            base_dir / "output" / "simulacoes" / folder_name / "tableaus_simplex.json",
+        ]
+        for path in candidates:
+            if path.exists() and path.is_file():
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        data["folder_name"] = folder_name
+                        return data
+                except Exception as e:
+                    print(f"[PO Analytics] Erro ao ler tableaus em {path}: {e}")
+        return None
 
-    # Arquivo mais recente no diretório output
-    candidates.append(base_dir / "output" / "tableaus_simplex_latest.json")
-
-    # Busca na pasta de simulações mais recente
+    # Se for "latest" ou não informado, procura a simulação arquivada mais recente com tableaus
     sim_dirs = sorted(glob.glob(str(base_dir / "output" / "simulacoes" / "*")), key=os.path.getmtime, reverse=True)
     for s_dir in sim_dirs:
-        candidates.append(Path(s_dir) / "resultados" / "tableaus_simplex.json")
-
-    for path in candidates:
-        if path.exists() and path.is_file():
+        p = Path(s_dir) / "resultados" / "tableaus_simplex.json"
+        if p.exists() and p.is_file():
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(p, "r", encoding="utf-8") as f:
                     data = json.load(f)
+                    data["folder_name"] = Path(s_dir).name
                     return data
             except Exception as e:
-                print(f"[PO Analytics] Erro ao ler tableaus em {path}: {e}")
+                print(f"[PO Analytics] Erro ao ler tableaus em {p}: {e}")
+
+    # Fallback para o arquivo no diretório raiz de output
+    latest_path = base_dir / "output" / "tableaus_simplex_latest.json"
+    if latest_path.exists() and latest_path.is_file():
+        try:
+            with open(latest_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                data["folder_name"] = "latest"
+                return data
+        except Exception as e:
+            print(f"[PO Analytics] Erro ao ler tableaus em {latest_path}: {e}")
 
     return None
 

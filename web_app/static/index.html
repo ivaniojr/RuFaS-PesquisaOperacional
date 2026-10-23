@@ -49,6 +49,9 @@
       <button class="tab-btn" data-tab="tab-tableaus">
         <span class="tab-icon">🧮</span> Tableaus Simplex
       </button>
+      <button class="tab-btn" data-tab="tab-cows">
+        <span class="tab-icon">🐄</span> Ficha das Vacas (IOFC)
+      </button>
       <button class="tab-btn" data-tab="tab-history">
         <span class="tab-icon">📁</span> Histórico de Simulações
       </button>
@@ -825,7 +828,7 @@
     <!-- TAB: Tableaus Simplex (Passo a Passo) -->
     <main class="tab-content" id="tab-tableaus">
       <div class="card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 10px;">
               <span style="font-size: 26px;">🧮</span>
@@ -835,9 +838,17 @@
               </div>
             </div>
           </div>
-          <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label for="select-tableau-sim" style="font-size: 13px; font-weight: 600; color: #cbd5e1; margin: 0; white-space: nowrap;">
+                📂 Simulação:
+              </label>
+              <select id="select-tableau-sim" class="form-control" style="font-size: 13px; padding: 6px 12px; min-width: 320px; max-width: 480px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(168, 85, 247, 0.45); color: #fff; cursor: pointer;">
+                <option value="">Carregando simulações com tableaus...</option>
+              </select>
+            </div>
             <button class="btn btn-secondary" id="btn-reload-tableaus" style="font-size: 13px;">
-              🔄 Atualizar Tableaus
+              🔄 Atualizar
             </button>
           </div>
         </div>
@@ -1014,6 +1025,303 @@
         </div>
       </div>
     </main>
+
+    <!-- TAB 6: Ficha das Vacas (IOFC) -->
+    <main class="tab-content" id="tab-cows">
+      <!-- Toolbar de Seleção e Parâmetros -->
+      <div class="cows-toolbar">
+        <div class="cows-filters-row">
+          <!-- 1. Combo de Fazendas -->
+          <div class="form-group" style="min-width: 230px; max-width: 290px;">
+            <label for="select-cows-farm"><strong>🏛️ Fazenda</strong></label>
+            <select id="select-cows-farm" class="form-control" style="font-weight: 600;">
+              <option value="ALL">Todas as Fazendas</option>
+            </select>
+          </div>
+
+          <!-- 2. Combo de Simulações da Fazenda -->
+          <div class="form-group" style="min-width: 280px; flex: 1;">
+            <label for="select-cows-sim"><strong>📁 Simulação Avaliada</strong></label>
+            <select id="select-cows-sim" class="form-control" style="font-weight: 500;">
+              <option value="">Carregando simulações...</option>
+            </select>
+          </div>
+          <div class="form-group" style="max-width: 170px;">
+            <label for="select-cows-limit"><strong>Exibir por Lista</strong></label>
+            <select id="select-cows-limit" class="form-control">
+              <option value="5">5 vacas</option>
+              <option value="10" selected>10 vacas (padrão)</option>
+              <option value="15">15 vacas</option>
+              <option value="20">20 vacas</option>
+              <option value="30">30 vacas</option>
+              <option value="50">50 vacas</option>
+              <option value="-1">Todas as vacas</option>
+            </select>
+          </div>
+          <div class="form-group" style="max-width: 160px;">
+            <label for="input-cows-milk-price"><strong>Preço do Leite ($/kg)</strong></label>
+            <input type="number" id="input-cows-milk-price" class="form-control" value="0.45" step="0.01" min="0.05">
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <span class="badge" id="cows-status-badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-size: 13px; padding: 6px 12px;">
+            Aguardando...
+          </span>
+          <button class="btn btn-primary" id="btn-refresh-cows" style="font-weight: 600;">
+            ⚡ Atualizar Ficha
+          </button>
+        </div>
+      </div>
+
+      <!-- Caixa Explicativa / Conceitual -->
+      <div class="theory-box" style="margin-top: 0; margin-bottom: 20px; border-left-color: #10b981;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <strong>Ficha Zootécnica & Bioeconômica das Vacas (Income Over Feed Cost - IOFC):</strong><br>
+            <span style="font-size: 13px; color: var(--text-dim);">
+              Avaliação individualizada das vacas do rebanho. O <strong>IOFC</strong> mede a receita bruta obtida com a produção de leite subtraída do custo individual de alimentação: 
+              $\text{IOFC} = (\text{Produção de Leite} \times P_{\text{leite}}) - \text{Custo da Dieta}$. 
+              Valores acima da média indicam animais de alto superávit operacional; valores inferiores alertam para déficit ou necessidade de descarte.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP: Médias Gerais do Rebanho (Herd Benchmarks) -->
+      <div class="card mb-4" style="border: 1px solid rgba(59, 130, 246, 0.3); background: rgba(59, 130, 246, 0.03);">
+        <div class="card-header" style="padding: 14px 20px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">📊</span>
+            <div>
+              <h3 style="font-size: 16px; margin: 0; color: #fff;">Médias Gerais do Rebanho (Padrão de Comparação)</h3>
+              <p class="subtitle" style="margin: 0; font-size: 12px;">Valores médios ponderados do lote para comparação individual com cada vaca.</p>
+            </div>
+          </div>
+        </div>
+        <div class="card-body" style="padding: 16px 20px;">
+          <div class="kpi-grid">
+            <div class="card kpi-card" style="padding: 14px;">
+              <span class="kpi-icon">🥛</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Produção Média de Leite</span>
+                <h3 id="kpi-cows-avg-milk">-- kg</h3>
+                <span class="kpi-sub">Por vaca / dia</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="padding: 14px;">
+              <span class="kpi-icon">🌾</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Consumo de Matéria Seca</span>
+                <h3 id="kpi-cows-avg-dmi">-- kg</h3>
+                <span class="kpi-sub">DMI médio / vaca / dia</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="padding: 14px;">
+              <span class="kpi-icon">💰</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Custo Médio da Ração</span>
+                <h3 id="kpi-cows-avg-cost" style="color: var(--accent-amber);">--</h3>
+                <span class="kpi-sub">Por vaca / dia</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="padding: 14px;">
+              <span class="kpi-icon">📈</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Margem Média IOFC</span>
+                <h3 id="kpi-cows-avg-iofc" style="color: #10b981;">--</h3>
+                <span class="kpi-sub">Receita leite - Custo ração</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="padding: 14px;">
+              <span class="kpi-icon">⚖️</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Eficiência Alimentar</span>
+                <h3 id="kpi-cows-avg-eff" style="color: var(--accent-cyan);">--</h3>
+                <span class="kpi-sub">kg leite / kg MS</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="padding: 14px;">
+              <span class="kpi-icon">🧈</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Sólidos do Leite</span>
+                <h3 id="kpi-cows-avg-solids">--</h3>
+                <span class="kpi-sub">Gordura % / Proteína %</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="padding: 14px;">
+              <span class="kpi-icon">🌿</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Metano Entérico (CH₄)</span>
+                <h3 id="kpi-cows-avg-methane">--</h3>
+                <span class="kpi-sub">Emissão média por vaca</span>
+              </div>
+            </div>
+            <div class="card kpi-card" style="padding: 14px;">
+              <span class="kpi-icon">🏷️</span>
+              <div class="kpi-content">
+                <span class="kpi-label">Efetivo em Lactação</span>
+                <h3 id="kpi-cows-total-count">--</h3>
+                <span class="kpi-sub">Vacas avaliadas</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico Comparativo: Top vs Média vs Piores -->
+      <div class="card mb-4">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2>Comparativo Geral: Top Melhores vs Média do Rebanho vs Piores</h2>
+            <p class="subtitle">Disparidade econômica de Margem IOFC, Produção de Leite e Custo Alimentar</p>
+          </div>
+          <span class="badge badge-subtle">Visão Macro</span>
+        </div>
+        <div class="card-body">
+          <div style="height: 260px; position: relative;">
+            <canvas id="chart-cows-comparison"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABELAS LADO A LADO OU EM SEÇÕES -->
+      <!-- 1. TOP MELHORES VACAS -->
+      <div class="card cows-top-card mb-4">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 24px;">🏆</span>
+              <div>
+                <h2 style="color: #34d399;">Top <span id="label-top-count">10</span> Melhores Vacas por IOFC (Superávit Operacional)</h2>
+                <p class="subtitle">Vacas de maior lucratividade diária após o custo da ração formulada.</p>
+              </div>
+            </div>
+          </div>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: 600;">
+            ▲ Alta Eficiência & Margem
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px; text-align: center;">#</th>
+                  <th>ID Vaca</th>
+                  <th>Paridade</th>
+                  <th>DIM Máx</th>
+                  <th>Leite (kg/dia)</th>
+                  <th>DMI (kg MS)</th>
+                  <th>Custo Ração</th>
+                  <th>Receita Leite</th>
+                  <th>IOFC ($/dia)</th>
+                  <th>Dif. vs Média</th>
+                  <th>Eficiência</th>
+                  <th>Sólidos (G/P)</th>
+                  <th style="text-align: center;">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="table-top-cows-body">
+                <tr><td colspan="13" style="text-align: center; color: var(--text-dim); padding: 24px;">Carregando ranking das melhores vacas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. TOP PIORES VACAS -->
+      <div class="card cows-bottom-card mb-4">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 24px;">⚠️</span>
+              <div>
+                <h2 style="color: #fb7185;">Top <span id="label-bottom-count">10</span> Piores Vacas por IOFC (Risco / Menor Margem)</h2>
+                <p class="subtitle">Animais de baixo retorno sobre o custo da ração consumida. Atenção zootécnica ou descarte.</p>
+              </div>
+            </div>
+          </div>
+          <span class="badge" style="background: rgba(244, 63, 94, 0.2); color: #fb7185; font-weight: 600;">
+            ▼ Baixa Conversão & Margem
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px; text-align: center;">#</th>
+                  <th>ID Vaca</th>
+                  <th>Paridade</th>
+                  <th>DIM Máx</th>
+                  <th>Leite (kg/dia)</th>
+                  <th>DMI (kg MS)</th>
+                  <th>Custo Ração</th>
+                  <th>Receita Leite</th>
+                  <th>IOFC ($/dia)</th>
+                  <th>Dif. vs Média</th>
+                  <th>Eficiência</th>
+                  <th>Sólidos (G/P)</th>
+                  <th style="text-align: center;">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="table-bottom-cows-body">
+                <tr><td colspan="13" style="text-align: center; color: var(--text-dim); padding: 24px;">Carregando ranking das piores vacas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modal: Detalhes Individuais da Vaca -->
+    <div id="modal-cow-detail" class="modal-overlay">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>
+            <span>🐄</span>
+            <span>Ficha Técnica: Vaca <strong id="modal-cow-id" style="color: #3b82f6;">#--</strong></span>
+          </h3>
+          <button class="modal-close-btn" id="btn-close-cow-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-cow-summary-cards" class="kpi-grid mb-3" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+            <!-- KPIs da vaca preenchidos via JS -->
+          </div>
+
+          <div class="card mb-3" style="background: var(--bg-subtle);">
+            <div class="card-body" style="padding: 16px;">
+              <h4 style="font-size: 14px; margin-bottom: 10px; color: #fff;">Comparativo Direto com a Média do Rebanho</h4>
+              <div class="table-container">
+                <table class="data-table" style="font-size: 13px;">
+                  <thead>
+                    <tr>
+                      <th>Indicador</th>
+                      <th>Valor da Vaca</th>
+                      <th>Média do Rebanho</th>
+                      <th>Diferença</th>
+                      <th>Desvio (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modal-cow-comparison-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header" style="padding: 12px 18px;">
+              <h4 style="font-size: 14px; margin: 0; color: #fff;">Curva Individual de Produção de Leite ao Longo dos Dias Simulados</h4>
+            </div>
+            <div class="card-body" style="padding: 16px;">
+              <div style="height: 250px; position: relative;">
+                <canvas id="chart-cow-individual-milk"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Container de Notificações Toast -->
