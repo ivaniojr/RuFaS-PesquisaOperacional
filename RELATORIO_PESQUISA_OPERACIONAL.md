@@ -1,8 +1,9 @@
 # Relatório Técnico e Científico: Otimização de Dietas e Pesquisa Operacional no RuFaS
 
 **Projeto:** RuFaS - Pesquisa Operacional & Simulação Biofísica  
-**Data:** 20 de Outubro de 2026  
-**Ambiente:** Python 3.10+, SciPy (`linprog` HiGHS / `minimize` SLSQP), Solver Simplex Nativo (Pure Python/NumPy), Flask Web App  
+**Autores:** Ivânio José da Rocha Júnior; Robson Pereira da Silva  
+**Data:** 24 de Outubro de 2026  
+**Ambiente:** Python 3.12/3.13, SciPy (`linprog` HiGHS / `minimize` SLSQP), Solver Simplex Nativo (Pure Python/NumPy), Flask Web App  
 **Repositório:** [RuFaS-PesquisaOperacional](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev)
 
 ---
@@ -782,4 +783,14 @@ Para verificar a integridade sintática e tipagem estática do código modificad
 | `Permission denied: ./iniciar_painel.sh` | Falta de permissão de execução no script bash (Linux/Mac). | Execute `chmod +x iniciar_painel.sh check_changes.sh`. |
 
 ---
+
+## Referências
+
+* ROCHA JÚNIOR, Ivânio José da; SILVA, Robson Pereira da. **RuFaS-PesquisaOperacional: projeto de otimização e simulação biofísica**. Código-fonte. GitHub, 2026. Disponível em: [https://github.com/ivaniojr/RuFaS-PesquisaOperacional.git](https://github.com/ivaniojr/RuFaS-PesquisaOperacional.git). Acesso em: 24 out. 2026.
+* RUMINANT FARM SYSTEMS (RuFaS). **RuFaS: Ruminant Farm Systems**. Repositório oficial de código-fonte. GitHub, s.d. Disponível em: [https://github.com/RuminantFarmSystems/RuFaS](https://github.com/RuminantFarmSystems/RuFaS). Acesso em: 24 out. 2026.
+* FREITAS, Leandro Alexandre. **RuFaS: a fazenda leiteira como problema de otimização — e como o RuFaS a resolve**. Material didático da Pós-graduação em Inteligência Artificial. Instituto Federal de Goiás (IFG), s.d. 13 páginas. Documento disponibilizado em PDF: `05 RuFaS_Aula_Pos_em_IA.pdf`.
+* RUMINANT FARM SYSTEMS (RuFaS). **Documentação técnica do projeto RuFaS**. GitHub Pages, s.d. Disponível em: [https://ruminantfarmsystems.github.io/RuFaS/](https://ruminantfarmsystems.github.io/RuFaS/). Acesso em: 24 out. 2026.
+
+---
 *Relatório técnico consolidado no ambiente RuFaS-PesquisaOperacional. Todos os códigos, modelos matemáticos e artefatos de dados estão disponíveis no repositório local.*
+
