@@ -523,6 +523,8 @@ def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]], feed_rel
             updated_feeds.append(existing_feed_map[calf_id])
             processed_ids.add(calf_id)
 
+    data.setdefault("ration_formulation_parameters", {})["user_defined_ration_tolerance"] = 0.25
+
     data["feeds"] = updated_feeds
     all_configured_ids = set(processed_ids)
 
@@ -537,31 +539,33 @@ def update_feeds_file(base_dir: Path, feeds_list: List[Dict[str, Any]], feed_rel
         # Proporções nutricionais zootecnicamente balanceadas para cada categoria
         IDEAL_BASE_PROPORTIONS = {
             "lac_cow": {
-                51: 45.0,  # Corn silage
-                44: 25.0,  # Corn grain
-                167: 16.0, # Soybean meal
-                18: 10.0,  # Bermudagrass hay
-                1: 2.0,    # Alfalfa meal
-                230: 0.8,  # Calcium carbonate
-                231: 0.8,  # Calcium phosphate di
+                51: 44.0,  # Corn silage
+                44: 27.0,  # Corn grain (densidade energética para cobrir NASEM NEL de 3 ordenhas)
+                167: 19.0, # Soybean meal (PB suficiente para cobrir ~3150g PM em pico de lactação)
+                18: 5.0,   # Bermudagrass hay (mantém peNDF sem derrubar digestibilidade)
+                1: 3.0,    # Alfalfa meal
+                230: 0.8,  # Calcium carbonate (fonte mineral pura de Ca)
+                231: 0.8,  # Calcium phosphate di (fonte mineral pura de P e Ca)
                 239: 0.4,  # Salt
             },
             "growing": {
-                51: 60.0,  # Corn silage
-                18: 30.0,  # Bermudagrass hay
-                44: 8.0,   # Corn grain
+                51: 65.0,  # Corn silage
+                18: 26.0,  # Bermudagrass hay
+                44: 6.0,   # Corn grain
                 167: 0.0,  # 0% soybean meal (evita violar protein_constraint_upper em novilhas)
-                230: 1.0,  # Calcium carbonate
-                231: 0.6,  # Calcium phosphate di
+                1: 0.0,    # 0% alfalfa meal (evita violar limite superior de proteína)
+                230: 1.4,  # Calcium carbonate
+                231: 1.2,  # Calcium phosphate di
                 239: 0.4,  # Salt
             },
             "close_up": {
                 51: 55.0,  # Corn silage
-                18: 30.0,  # Bermudagrass hay
+                18: 28.0,  # Bermudagrass hay
                 44: 10.0,  # Corn grain
-                167: 3.0,  # Soybean meal
-                230: 1.0,  # Calcium carbonate
-                231: 0.6,  # Calcium phosphate di
+                167: 4.0,  # Soybean meal
+                1: 0.0,    # 0% alfalfa
+                230: 1.2,  # Calcium carbonate
+                231: 1.4,  # Calcium phosphate di (evita violação de fósforo no pré-parto)
                 239: 0.4,  # Salt
             }
         }

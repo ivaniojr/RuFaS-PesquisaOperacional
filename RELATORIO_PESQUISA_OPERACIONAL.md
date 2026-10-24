@@ -3,7 +3,7 @@
 **Projeto:** RuFaS - Pesquisa Operacional & Simulação Biofísica  
 **Data:** 20 de Outubro de 2026  
 **Ambiente:** Python 3.10+, SciPy (`linprog` HiGHS / `minimize` SLSQP), Solver Simplex Nativo (Pure Python/NumPy), Flask Web App  
-**Repositório:** [RuFaS-PesquisaOperacional](file:///home/ivanio/IFG/Pesquisa_Operacional/RuFas/RuFaS-PesquisaOperacional)
+**Repositório:** [RuFaS-PesquisaOperacional](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev)
 
 ---
 
@@ -113,7 +113,7 @@ $$\sum_{i=1}^n (\text{EE}_i - \text{EE}_{\max}) \cdot x_i \le 0$$
 
 ### 1.4 Implementação Computacional no Código
 
-A implementação do solver linear reside na classe [RationOptimizer](file:///home/ivanio/IFG/Pesquisa_Operacional/RuFas/RuFaS-PesquisaOperacional/RUFAS/biophysical/animal/ration/ration_optimizer.py#L962-L1083), no método `_attempt_linear_optimization`.
+A implementação do solver linear reside na classe [RationOptimizer](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/ration_optimizer.py), no método `_attempt_linear_optimization`.
 
 ```python
 # Trecho de RUFAS/biophysical/animal/ration/ration_optimizer.py
@@ -165,7 +165,7 @@ def _attempt_linear_optimization(
 
 ### 1.5 O Solver Linear Nativo Autônomo: Método Simplex em Duas Fases do Zero
 
-Para fins acadêmicos, didáticos e de validação científica independente, foi desenvolvido e integrado um solver linear nativo autônomo em [RUFAS/biophysical/animal/ration/pure_simplex_solver.py](file:///home/ivanio/IFG/Pesquisa_Operacional/RuFas/RuFaS-PesquisaOperacional/RUFAS/biophysical/animal/ration/pure_simplex_solver.py).
+Para fins acadêmicos, didáticos e de validação científica independente, foi desenvolvido e integrado um solver linear nativo autônomo em [RUFAS/biophysical/animal/ration/pure_simplex_solver.py](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/pure_simplex_solver.py).
 
 Este solver **não utiliza nenhuma biblioteca externa de otimização matemática** (como `scipy.optimize.linprog`, PuLP ou CVXPY), baseando-se exclusivamente em estruturas vetoriais e matriciais com NumPy para as operações elementares de linha de Gauss-Jordan.
 
@@ -234,6 +234,133 @@ O solver foi instrumentado com um coletor de telemetria que registra a matriz co
 ```
 Esse arquivo (`output/tableaus_simplex_latest.json`) alimenta diretamente o componente interativo da interface web, permitindo a navegação didática completa da resolução do modelo.
 
+#### 1.5.5 Explicação Passo a Passo do Código do LP Simplex (Arquitetura e Fluxo de Execução)
+
+O módulo [`pure_simplex_solver.py`](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/pure_simplex_solver.py) implementa a classe `TwoPhaseSimplexSolver`, projetada para resolver com exatidão analítica o problema de programação linear canônico da ração bovina, sem recorrer a bibliotecas externas de otimização (como SciPy, GLPK ou COIN-OR), utilizando exclusivamente álgebra linear com NumPy.
+
+Abaixo é apresentado o detalhamento do funcionamento de cada bloco lógico, estrutura de dados e método do algoritmo:
+
+```mermaid
+flowchart TD
+    subgraph S1 ["Etapa 1 & 2: Preparação Canônica"]
+        A["Entrada: c, A_ub, b_ub, bounds"] --> B["Unificação de Bounds e Restrições\n(bounds convertidos em linhas explícitas)"]
+        B --> C["Normalização do RHS: se b_i < 0,\nmultiplica por -1 e inverte desigualdade"]
+    end
+
+    subgraph S2 ["Etapa 3: Injeção de Variáveis Auxiliares"]
+        C --> D["Restrições <= : adiciona folga +s_i"]
+        C --> E["Restrições >= : adiciona excesso -e_i e artificial +a_i"]
+        D --> F["Base Inicial B_0 = {s_i, a_i}"]
+        E --> F
+    end
+
+    subgraph S3 ["Etapa 4: FASE 1 (Viabilidade)"]
+        F --> G["Função Objetivo Auxiliar:\nmin W = soma(a_k)"]
+        G --> H["Ajuste Canônico da Linha W:\nLinha_W = Linha_W - soma(Linhas Básicas Artificiais)"]
+        H --> I["_simplex_loop (Fase 1)"]
+        I --> J{"W* == 0 ?"}
+        J -->|"Não (W* > 1e-4)"| K["Retorna: Inviável (Status 2)\n(Falha Nutricional / Restrições Conflitantes)"]
+        J -->|"Sim (W* = 0)"| L["Purificação da Base\n(Remove artificiais nulas e elimina colunas a_k)"]
+    end
+
+    subgraph S4 ["Etapa 5 & 6: FASE 2 (Otimização Econômica)"]
+        L --> M["Substitui Função Objetivo:\nmin Z = c^T x (custos reais da ração)"]
+        M --> N["Ajuste Canônico dos Custos Reduzidos:\nc_barra_j = c_j - c_B * B^-1 * A_j"]
+        N --> O["_simplex_loop (Fase 2)"]
+        O --> P{"Todos c_barra_j >= -tol ?"}
+        P -->|"Sim"| Q["Solução Ótima Encontrada!\nExtrai x* do vetor RHS e calcula Custo Mínimo"]
+        P -->|"Não (Ilimitado)"| R["Retorna: Problema Ilimitado (Status 1)"]
+    end
+
+    subgraph S5 ["Telemetria e Snapshots"]
+        I -.->|"A cada iteração"| T["_record_snapshot:\nGrava matriz, pivô, entrante, sainte e custos"]
+        O -.->|"A cada iteração"| T
+        T --> U["output/tableaus_simplex_latest.json\n(Alimenta a aba Web 'Tableaus Simplex')"]
+    end
+```
+
+##### 1. Inicialização e Parâmetros Numéricos (`__init__`)
+* **`tol = 1e-8`:** Tolerância numérica escalar para validação de nulos em aritmética de ponto flutuante IEEE 754 de precisão dupla (`float64`). É utilizada para evitar instabilidades numéricas, como divisões por quase-zero e falsos coeficientes negativos causados por resíduos infinitesimais de máquina.
+* **`max_iter = 2000`:** Teto máximo de pivoteamentos permitidos, prevenindo laços infinitos em problemas patológicos ou em situações de degenerescência com ciclagem.
+* **`history`:** Lista sequencial em memória que acumula os metadados e os snapshots dos tableaus gerados ao longo de todas as iterações da resolução.
+
+##### 2. Orquestração e Conversão Canônica (`solve`)
+O método `solve(c, A_ub, b_ub, bounds, var_names, constraint_names)` executa a conversão estrutural completa do problema em 6 passos:
+1. **Unificação de Restrições e Limites:**
+   * Recebe o vetor de custos $\mathbf{c} \in \mathbb{R}^n$, as restrições nutricionais $\mathbf{A}_{ub}\mathbf{x} \le \mathbf{b}_{ub}$ e os intervalos de tolerância dos alimentos $[l_j, u_j]$.
+   * Os bounds de inclusão são transformados em restrições matriciais convencionais:
+     * Limite inferior: $x_j \ge l_j \implies x_j \ge l_j$ (restrição do tipo $\ge$).
+     * Limite superior: $x_j \le u_j \implies x_j \le u_j$ (restrição do tipo $\le$).
+2. **Normalização do Termo Independente ($b_i \ge 0$):**
+   * O algoritmo Simplex exige que o vetor do lado direito ($\mathbf{b}$) seja estritamente não-negativo para garantir que a base inicial seja geometricamente viável no primeiro quadrante.
+   * Se algum $b_i < 0$, a linha inteira da matriz é multiplicada por $-1$, invertendo o sentido da desigualdade ($\le$ converte-se em $\ge$, e vice-versa).
+3. **Injeção de Variáveis Auxiliares (Folga, Excesso e Artificial):**
+   * Para cada restrição do tipo $\le$, adiciona-se uma coluna de folga $+s_i$ e define-se $s_i$ como variável básica inicial.
+   * Para cada restrição do tipo $\ge$, subtrai-se uma variável de excesso $-e_i$ e adiciona-se uma variável artificial $+a_i$. A variável artificial $a_i$ é designada como variável básica inicial, garantindo que o bloco inicial das variáveis básicas forme a matriz identidade $\mathbf{I}_m$.
+4. **Execução da Fase 1 (Eliminação das Variáveis Artificiais):**
+   * Monta-se a matriz estendida inicial da Fase 1: $\begin{bmatrix} \mathbf{A}_{\text{std}} & \mathbf{b}_{\text{std}} \\ \mathbf{c}_{p1}^T & 0 \end{bmatrix}$, onde o vetor de custos artificial inicial possui coeficiente $1$ para variáveis artificiais e $0$ para as demais.
+   * **Ajuste Canônico Inicial:** Para que o tableau esteja na forma canônica com respeito à base inicial, zera-se o custo reduzido das variáveis artificiais básicas subtraindo suas respectivas linhas da linha da função objetivo:
+     $$\text{Linha}_{m+1} \leftarrow \text{Linha}_{m+1} - \sum_{i \in \text{Artificiais}} \text{Linha}_i$$
+   * Invoca-se `_simplex_loop(tableau_p1, ...)`.
+   * **Diagnóstico de Viabilidade:** Ao concluir a Fase 1, avalia-se o valor ótimo da função artificial $W^* = -\text{tableau}[-1, -1]$. Se $W^* > 10^{-4}$, resta resíduo artificial que não pôde ser eliminado; logo, a região viável é vazia ($\mathcal{P} = \emptyset$) e o sistema retorna imediatamente indicando inviabilidade agronômica.
+   * **Purificação da Base:** Caso alguma variável artificial permaneça na base com valor numérico zero (caso degenerado), ela é forçada para fora da base através de um pivoteamento com qualquer coluna não-artificial com coeficiente não-nulo.
+   * **Remoção de Colunas:** Todas as colunas correspondentes às variáveis artificiais $a_k$ são removidas da matriz NumPy, reduzindo a dimensionalidade para a Fase 2.
+5. **Execução da Fase 2 (Minimização Econômica da Dieta):**
+   * Instancia-se a matriz estendida da Fase 2 contendo as restrições purificadas e o vetor de custos reais da ração: $\mathbf{c}_{p2} = [c_1, \dots, c_n, 0, \dots, 0]$.
+   * **Ajuste Canônico dos Custos Reduzidos:** A linha de custos reais é canonicamente projetada na base atual através da subtração:
+     $$\text{Linha}_{m+1} \leftarrow \mathbf{c}_{p2} - \sum_{i=1}^m c_{B(i)} \cdot \text{Linha}_i$$
+   * Invoca-se `_simplex_loop(final_tableau, ...)` para percorrer as arestas do poliedro convexo em direção ao vértice de mínimo custo financeiro diário.
+6. **Extração da Solução Ótima:**
+   * A solução é lida diretamente da coluna de termos independentes (RHS, última coluna do tableau): para cada linha $i$, se a variável básica $\text{basis}[i]$ for uma das variáveis de decisão originais ($< n$), define-se $x_j^* = \text{tableau}[i, -1]$; as variáveis não-básicas assumem valor $0$.
+   * Calcula-se o custo total ótimo $Z^* = \mathbf{c}^T \mathbf{x}^*$.
+
+##### 3. O Núcleo do Laço Simplex (`_simplex_loop`)
+O método `_simplex_loop` implementa o ciclo clássico de transição entre vértices adjacentes da Programação Linear:
+1. **Critério de Otimalidade de Dantzig (Escolha da Coluna Pivô):**
+   * Avalia o vetor de custos reduzidos na última linha do tableau: $\bar{\mathbf{c}} = \text{tableau}[-1, :q]$.
+   * Localiza o índice do menor custo reduzido: $k = \arg\min_j \bar{c}_j$.
+   * Se $\bar{c}_k \ge -\text{tol}$, não existe nenhum insumo que possa reduzir o valor da função objetivo. A base atual é comprovadamente **ótima**, e o laço encerra com sucesso.
+   * Caso contrário, a variável associada à coluna $k$ é eleita como a **variável entrante na base**.
+2. **Teste da Razão Mínima (Escolha da Linha Pivô):**
+   * Para garantir a não-negatividade das variáveis ($x \ge 0$), calcula-se a razão entre os termos independentes atuais e os coeficientes estritamente positivos da coluna entrante:
+     $$\theta_i = \frac{b_i}{a_{ik}}, \quad \forall i \in \{1,\dots,m\} \text{ tal que } a_{ik} > \text{tol}$$
+   * Se nenhum coeficiente for estritamente positivo ($a_{ik} \le \text{tol}, \forall i$), a variável pode crescer indefinidamente sem violar nenhuma restrição. O problema é matematicamente **ilimitado** (*unbounded*), e o laço encerra com erro.
+   * A linha que atinge a menor razão positiva ($p = \arg\min_i \theta_i$) determina a restrição mais restritiva. A variável básica atual da linha $p$ é a **variável sainte da base**.
+3. **Registro de Telemetria (`_record_snapshot`):**
+   * Antes de alterar os valores da matriz, salva um registro completo contendo: iteração atual, fase (1 ou 2), nomes das variáveis de entrada e saída, elemento pivô $a_{pk}$, vetor de razões $\theta$, matriz com coeficientes arredondados e valor corrente da função objetivo.
+4. **Pivoteamento:** Invoca `_pivot(tableau, basis, p, k)`.
+
+##### 4. Operações Elementares de Gauss-Jordan (`_pivot`)
+O método `_pivot(tableau, basis, pivot_row, pivot_col)` atualiza o tableau matricial in-place no NumPy:
+1. **Normalização da Linha Pivô:**
+   * Divide todos os elementos da linha $p$ pelo elemento pivô escalar $a_{pk}$:
+     $$\text{tableau}[p, :] \leftarrow \frac{\text{tableau}[p, :]}{a_{pk}}$$
+   * Após essa divisão, o elemento na posição $(p, k)$ torna-se identicamente $1.0$.
+2. **Eliminação Gaussiana das Demais Linhas:**
+   * Para cada linha $i \in \{0, \dots, m\}$ com $i \neq p$:
+     * Obtém o fator de cancelamento $f = \text{tableau}[i, k]$.
+     * Se $|f| > 10^{-15}$, subtrai o múltiplo da linha pivô normalizada:
+       $$\text{tableau}[i, :] \leftarrow \text{tableau}[i, :] - f \cdot \text{tableau}[p, :]$$
+   * Essa operação zera todos os coeficientes da coluna $k$, exceto o pivô, convertendo a coluna entrante em um vetor unitário canônico $\mathbf{e}_p$.
+3. **Atualização do Vetor de Base:**
+   * Define $\text{basis}[p] \leftarrow k$, indicando formalmente a entrada da nova variável na base e a saída da anterior.
+
+##### 5. Conexão Zootécnica em `ration_optimizer.py`
+A ponte entre o modelo biológico do RuFaS e o solver matricial ocorre no método `_attempt_native_simplex_optimization`:
+* **Mapeamento de Restrições:** Traduz as exigências nutricionais das vacas calculadas pelo motor NASEM/NRC em linhas da matriz $\mathbf{A}_{ub}$ e termos de $\mathbf{b}_{ub}$:
+  * *Consumo Máximo de Matéria Seca:* $\sum x_j \le \text{DMI}_{\max}$
+  * *Consumo Mínimo de Matéria Seca:* $-\sum x_j \le -\text{DMI}_{\min}$
+  * *Energia Líquida de Lactação ($NE_L$):* $-\sum (\text{NEL}_j) x_j \le -\text{Req}_{\text{energia}}$
+  * *Proteína Metabolizável Mínima:* $-\sum (\text{CP}_j \times 6.5) x_j \le -\text{Req}_{\text{PM}}$
+  * *Proteína Metabolizável Máxima (Teto de 115%):* $\sum (\text{CP}_j \times 6.5) x_j \le 1.15 \times \text{Req}_{\text{PM}}$
+  * *Cálcio Mínimo:* $-\sum (\text{Ca}_j \times 10) x_j \le -\text{Req}_{\text{Ca}}$
+  * *Fósforo Mínimo:* $-\sum (\text{P}_j \times 10) x_j \le -\text{Req}_{\text{P}}$
+  * *Fibra Efetiva Forrageira Mínima:* $-\sum (\text{FDN}_j - \text{FDN}_{\min}) x_j \le 0$
+  * *Extrato Etéreo Máximo:* $\sum (\text{EE}_j - \text{EE}_{\max}) x_j \le 0$
+* **Exportação JSON para o Dashboard:**
+  * O método extrai a dieta ótima calculada e formata um payload contendo o resumo dos alimentos (kg MS/dia, proporção percentual e custo diário individual).
+  * Salva o arquivo `output/tableaus_simplex_latest.json`, que é automaticamente lido pelo frontend Flask em tempo real para permitir que o usuário navegue visualmente pelos tableaus interativos da simulação.
+
 ---
 
 ## 2. Registro Completo das Modificações Realizadas
@@ -244,8 +371,8 @@ Todas as intervenções no repositório foram realizadas com o princípio da int
 
 | Arquivo | Linhas Chave | Natureza da Alteração | Finalidade |
 | :--- | :--- | :--- | :--- |
-| [pure_simplex_solver.py](file:///home/ivanio/IFG/Pesquisa_Operacional/RuFas/RuFaS-PesquisaOperacional/RUFAS/biophysical/animal/ration/pure_simplex_solver.py) | **Novo Módulo** (L1-370) | Implementação do Solver Simplex em Duas Fases do zero | Permite resolver o modelo de ração linear sem nenhuma dependência externa (`scipy.optimize.linprog`), gravando o histórico completo de tableaus, variáveis entrantes/saintes e pivôs. |
-| [ration_optimizer.py](file:///home/ivanio/IFG/Pesquisa_Operacional/RuFas/RuFaS-PesquisaOperacional/RUFAS/biophysical/animal/ration/ration_optimizer.py) | L1-3, L925-945, L962-1083, L1175-1265 | Adição dos métodos `_attempt_linear_optimization` e `_attempt_native_simplex_optimization` | Suporta os modos `linear` (HiGHS) e `linear_native` (Simplex do zero), serializando automaticamente os snapshots para `output/tableaus_simplex_latest.json`. |
+| [pure_simplex_solver.py](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/pure_simplex_solver.py) | **Novo Módulo** (L1-442) | Implementação do Solver Simplex em Duas Fases do zero | Permite resolver o modelo de ração linear sem nenhuma dependência externa (`scipy.optimize.linprog`), gravando o histórico completo de tableaus, variáveis entrantes/saintes e pivôs. |
+| [ration_optimizer.py](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/ration_optimizer.py) | L925-945, L962-1089, L1091-1273 | Adição dos métodos `_attempt_linear_optimization` e `_attempt_native_simplex_optimization` | Suporta os modos `linear` (HiGHS) e `linear_native` (Simplex do zero), serializando automaticamente os snapshots para `output/tableaus_simplex_latest.json`. |
 
 ### 2.2 Modificações no Módulo Analítico e de PO (`web_app/po_analytics.py`)
 
@@ -260,12 +387,13 @@ Todas as intervenções no repositório foram realizadas com o princípio da int
      * **#230 - Carbonato de Cálcio / Calcário Calcítico** (39,4% Ca, 0% PB) — $\$0,080/\text{kg}$;
      * **#231 - Fosfato Bicálcico** (22,0% Ca, 19,3% P, 0% PB) — $\$0,250/\text{kg}$;
      * **#239 - Sal Comum / Cloreto de Sódio** (NaCl, 0% PB) — $\$0,060/\text{kg}$.
-4. **Rebalanceamento das Proporções Basais (`IDEAL_BASE_PROPORTIONS`):**
-   * No RuFaS, com `ration.user_input = true`, as caixas de limite dos insumos são fixadas ao redor da proporção inicial. Proporções arbitrárias que funcionavam para vacas causavam excesso de proteína em novilhas em crescimento (`growing`).
-   * Foram calibradas proporções específicas para cada lote:
-     * **Vacas em Lactação (`lac_cow`):** 45% Silagem de Milho, 25% Grão de Milho, 16% Farelo de Soja 48%, 10% Feno Bermudagrass, 2% Alfafa, 0.8% Calcário, 0.8% Fosfato Bicálcico, 0.4% Sal. (Soma: 100%).
-     * **Novilhas / Recria (`growing`):** 60% Silagem, 30% Feno, 8% Milho Grão, 0% Soja (evita estouro de proteína), 1.0% Calcário, 0.6% Fosfato, 0.4% Sal.
-     * **Pré-Parto (`close_up`):** 55% Silagem, 30% Feno, 10% Milho Grão, 3% Soja, 1.0% Calcário, 0.6% Fosfato, 0.4% Sal.
+4. **Rebalanceamento das Proporções Basais (`IDEAL_BASE_PROPORTIONS`) e Expansão da Tolerância:**
+   * No RuFaS, com `ration.user_input = true`, as caixas de limite dos insumos (bounds) são fixadas ao redor da proporção inicial por uma tolerância percentual (`user_defined_ration_tolerance`).
+   * *Diagnóstico do Gargalo:* No cenário de 200 vacas com 3 ordenhas diárias e alta produção (~48 a 50 kg de leite/dia), a exigência de Energia Líquida ($NE_L > 53 \text{ Mcal/dia}$) e Proteína Metabolizável ($\text{PM} > 3.150 \text{ g/dia}$) do NASEM (2021) não conseguia ser satisfeita com apenas 16% de Farelo de Soja e 10% de Feno Bermudagrass associados a uma tolerância rígida de 10% ($\pm 0,10$), pois o solver ficava travado nos limites máximos da caixa. Além disso, a inclusão residual de 4,76% de Alfafa em novilhas causava excesso de proteína (`protein_constraint_upper`).
+   * *Calibração de Alta Produção e Tolerância de 25%:* A tolerância foi expandida para $\pm 25\%$ (`user_defined_ration_tolerance = 0.25`), concedendo liberdade matemática ao solver, com as seguintes proporções basais zootécnicas:
+     * **Vacas em Lactação (`lac_cow`):** 44% Silagem de Milho, 27% Grão de Milho (densidade energética), 19% Farelo de Soja 48% (suprimento de ~3.150g de PM), 5% Feno Bermudagrass (fibra efetiva peNDF sem diluição energética), 3% Alfafa, 0,8% Calcário, 0,8% Fosfato Bicálcico, 0,4% Sal. (Soma: 100%).
+     * **Novilhas / Recria (`growing`):** 65% Silagem, 26% Feno Bermudagrass, 6% Milho Grão, 0% Soja, 0% Alfafa (elimina em 100% o estouro de `protein_constraint_upper`), 1,4% Calcário, 1,2% Fosfato, 0,4% Sal.
+     * **Pré-Parto (`close_up`):** 55% Silagem, 28% Feno Bermudagrass, 10% Milho Grão, 4% Soja, 0% Alfafa, 1,2% Calcário, 1,4% Fosfato Bicálcico (suprimento mineral seguro para transição), 0,4% Sal.
 5. **Integração do Solver Nativo e Leitura de Tableaus (`get_simplex_tableaus_data` e `compare_solvers`):**
    * A função `compare_solvers` foi estendida para comparar simultaneamente os 3 solvers (`linear_highs`, `native_simplex` e `nonlinear_slsqp`).
    * Implementada a função `get_simplex_tableaus_data` para carregar dados de tableaus tanto do arquivo corrente `output/tableaus_simplex_latest.json` quanto de simulações arquivadas.
