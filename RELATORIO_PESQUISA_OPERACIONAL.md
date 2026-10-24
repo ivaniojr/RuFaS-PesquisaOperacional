@@ -16,12 +16,14 @@ O ecossistema agora conta com **3 solvers integrados** para análise comparativa
 2. **Linear Nativo Autônomo (Pure Simplex em Duas Fases):** Desenvolvido do zero em Python e NumPy sem bibliotecas de otimização de terceiros, com instrumentação analítica completa para inspeção dos **Tableaus Simplex** passo a passo.
 3. **Não-Linear Mecanístico (SciPy SLSQP):** Solver gradiente com restrições não-lineares para ajuste fino e curvas biológicas contínuas.
 
-O relatório está estruturado em 5 seções fundamentais:
+O relatório está estruturado em 7 seções fundamentais:
 1. **Os Solvers Lineares e suas Implementações:** Modelagem canônica de PL, arquitetura via SciPy HiGHS e formulação do Simplex Nativo em Duas Fases com álgebra de tableaus.
 2. **Registro Completo das Modificações:** Alterações no núcleo do RuFaS, inclusão do módulo `pure_simplex_solver.py`, auditoria de falhas, supressão de métricas enganosas e rebalanceamento mineral.
 3. **Guia de Operação da Interface Gráfica:** Descrição aprofundada dos módulos web, fluxos de uso, sensibilidade de preços, aba interativa **Tableaus Simplex** e controle de simulações.
 4. **Limitações dos Modelos (Linear vs. Não-Linear / NASEM vs. NRC):** Pressupostos biológicos, trade-offs matemáticos e restrições de escala.
 5. **Comparação de Resultados Reais:** Análise empírica comparando os três solvers com simulações de 365 dias, indicadores zootécnicos e econômicos (DMI, Custo, Leite, IOFC e Eficiência).
+6. **Conclusões e Recomendações:** Síntese zootécnica e metodológica para suporte à decisão.
+7. **Guia Prático de Instalação, Configuração e Execução:** Requisitos de sistema, criação de virtualenv, instalação de pacotes e modos de execução (Interface Gráfica Web, Linha de Comando e Scripts Utilitários).
 
 ```mermaid
 flowchart TD
@@ -608,6 +610,176 @@ pie title Distribuição de Custos da Dieta Balanceada Ótima (SIM018 - Linear N
    * Utilizar a aba **"🧮 Tableaus Simplex"** para aulas, relatórios acadêmicos e compreensão exata das restrições nutricionais ativas (custos reduzidos e preços-sombra).
    * Utilizar o **Solver Linear (HiGHS Simplex)** para triagens econômicas anuais rápidas e sensibilidade de mercado.
    * Utilizar o **Solver Não-Linear (SLSQP)** com **NASEM** para estudos zootécnicos finos de emissão entérica e máxima produtividade.
+
+---
+
+## 7. Guia Prático de Instalação, Configuração e Execução
+
+Esta seção fornece o passo a passo completo e reprodutível para configurar o ambiente de desenvolvimento, instalar as dependências e executar o sistema RuFaS tanto em ambiente Windows quanto Linux/macOS.
+
+### 7.1 Pré-requisitos de Sistema
+
+Antes de iniciar, certifique-se de possuir instalado em sua máquina:
+* **Python:** Versão **3.12** ou **3.13** (conforme especificado no arquivo [`pyproject.toml`](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/pyproject.toml): `>=3.12, <3.14`).
+* **Git:** Para clonagem e versionamento do código.
+* **Navegador Web Moderno:** Google Chrome, Mozilla Firefox, Microsoft Edge ou Safari.
+
+```bash
+# Verificar a versão instalada do Python
+python --version   # ou python3 --version
+```
+
+### 7.2 Clonagem e Criação do Ambiente Virtual (`venv`)
+
+Recomenda-se fortemente a utilização de um ambiente virtual isolado para evitar conflitos de bibliotecas com o Python global do sistema.
+
+#### No Windows (PowerShell ou Prompt de Comando):
+```powershell
+# 1. Navegue até o diretório do projeto
+cd C:\Users\ivani\OneDrive\IFG_Goias\PesquisaOperacional\Projeto_Final\RuFaS-dev\RuFaS-dev
+
+# 2. Crie o ambiente virtual (caso ainda não exista)
+python -m venv ..\..\venv
+
+# 3. Ative o ambiente virtual
+# No PowerShell:
+..\..\venv\Scripts\Activate.ps1
+# No Prompt de Comando (CMD):
+..\..\venv\Scripts\activate.bat
+```
+
+#### No Linux / macOS (Bash / Zsh):
+```bash
+# 1. Navegue até a raiz do repositório
+cd RuFaS-dev/RuFaS-dev
+
+# 2. Crie o ambiente virtual
+python3 -m venv venv
+
+# 3. Ative o ambiente virtual
+source venv/bin/activate
+```
+
+### 7.3 Instalação das Dependências
+
+Com o ambiente virtual ativado, instale o motor biofísico do RuFaS em modo editável (`-e`), o framework web Flask e os pacotes científicos de Pesquisa Operacional:
+
+```bash
+# Atualize o gerenciador de pacotes pip
+python -m pip install --upgrade pip
+
+# Instale o pacote RuFaS em modo de desenvolvimento com as dependências do pyproject.toml
+pip install -e .
+
+# Instale as dependências da aplicação Web (Flask)
+pip install Flask
+```
+
+> [!NOTE]
+> **Pacotes Principais Instalados:**
+> * `numpy==2.2.0` (Álgebra linear do Pure Simplex Solver)
+> * `scipy>=1.15.1` (Solvers HiGHS Simplex e SLSQP)
+> * `pandas>=2.2.3` (Processamento de séries temporais das simulações)
+> * `matplotlib>=3.10.0` (Renderização de gráficos biofísicos)
+> * `Flask>=3.1.0` (Servidor de APIs e Dashboard Web)
+> * `numba>=0.61.0` (Aceleração JIT do modelo animal)
+
+---
+
+### 7.4 Modos de Execução da Aplicação
+
+O ecossistema dispõe de **três modos de execução**, adaptados para diferentes perfis de usuário:
+
+#### Modo 1: Interface Gráfica Web Interativa (Recomendado)
+Inicia o servidor Flask local e abre automaticamente o painel completo no seu navegador padrão.
+
+* **No Windows:**
+  Dê dois cliques no arquivo [`iniciar_painel.bat`](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/iniciar_painel.bat) ou execute no terminal:
+  ```cmd
+  iniciar_painel.bat
+  ```
+* **No Linux / macOS:**
+  Dê permissão de execução e dispare o script [`iniciar_painel.sh`](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/iniciar_painel.sh):
+  ```bash
+  chmod +x iniciar_painel.sh
+  ./iniciar_painel.sh
+  ```
+* **Execução Direta via Python (Multiplataforma):**
+  ```bash
+  python web_app/app.py
+  ```
+
+Após iniciar, o painel estará disponível no endereço:
+👉 **[http://127.0.0.1:5000](http://127.0.0.1:5000)**
+
+Na interface web, você poderá:
+1. Alternar entre os padrões **NASEM** e **NRC** na aba *"Cenários & Fazendas"*.
+2. Selecionar entre os solvers **Linear (HiGHS)**, **Linear Nativo (Simplex Duas Fases)** ou **Não-Linear (SLSQP)**.
+3. Disparar simulações com barra de progresso em tempo real na aba *"Painel Geral"*.
+4. Inspecionar cada passo matricial na aba interativa *"🧮 Tableaus Simplex"*.
+5. Visualizar a ficha de desempenho individual e zootécnico de cada vaca do rebanho na aba *"Ficha das Vacas"*.
+
+---
+
+#### Modo 2: Execução em Linha de Comando (CLI / Headless)
+Para rodar simulações em servidores remotos, pipelines CI/CD ou testes automatizados em lote sem interface gráfica:
+
+```bash
+# Executa a simulação padrão com rastreamento e arquivamento automático
+python main.py
+```
+
+Você pode especificar o solver desejado diretamente definindo a variável de ambiente `RUFAS_OPTIMIZATION_MODE`:
+
+* **Linear Nativo Autônomo (Simplex em Duas Fases com gravação de Tableaus):**
+  ```powershell
+  # Windows PowerShell:
+  $env:RUFAS_OPTIMIZATION_MODE = "linear_native"; python main.py
+  # Linux / macOS:
+  RUFAS_OPTIMIZATION_MODE=linear_native python main.py
+  ```
+* **Linear HiGHS (Biblioteca C++):**
+  ```powershell
+  # Windows PowerShell:
+  $env:RUFAS_OPTIMIZATION_MODE = "linear"; python main.py
+  # Linux / macOS:
+  RUFAS_OPTIMIZATION_MODE=linear python main.py
+  ```
+* **Não-Linear Mecanístico (SLSQP):**
+  ```powershell
+  # Windows PowerShell:
+  $env:RUFAS_OPTIMIZATION_MODE = "nonlinear"; python main.py
+  # Linux / macOS:
+  RUFAS_OPTIMIZATION_MODE=nonlinear python main.py
+  ```
+
+Ao término, a simulação será automaticamente arquivada na pasta `output/simulacoes/<FAZENDA>_SIM<N>_<TIMESTAMP>/` contendo os parâmetros, logs de console, arquivos CSV brutos e o manifesto JSON auditável.
+
+---
+
+#### Modo 3: Scripts de Verificação e Linting
+Para verificar a integridade sintática e tipagem estática do código modificado com Flake8 e MyPy:
+
+* **No Windows:**
+  ```cmd
+  check_changes.bat main
+  ```
+* **No Linux / macOS:**
+  ```bash
+  chmod +x check_changes.sh
+  ./check_changes.sh main
+  ```
+
+---
+
+### 7.5 Solução de Problemas Comuns (Troubleshooting)
+
+| Sintoma / Erro | Causa Provável | Ação Corretiva |
+| :--- | :--- | :--- |
+| `Address already in use` (Porta 5000 ocupada) | Uma instância anterior do Flask continua rodando em segundo plano. | No Windows, execute `Get-NetTCPConnection -LocalPort 5000` e finalize o PID via `Stop-Process -Id <PID>`. No Linux, execute `fuser -k 5000/tcp`. |
+| `ModuleNotFoundError: No module named 'RUFAS'` | O pacote RuFaS não foi instalado em modo editável no ambiente virtual ativo. | Com o venv ativado, execute `pip install -e .` a partir da raiz do repositório. |
+| `Execution of scripts is disabled on this system` (PowerShell) | Política de restrição de execução de scripts padrão do Windows. | Execute no PowerShell como Administrador: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. |
+| `Permission denied: ./iniciar_painel.sh` | Falta de permissão de execução no script bash (Linux/Mac). | Execute `chmod +x iniciar_painel.sh check_changes.sh`. |
 
 ---
 *Relatório técnico consolidado no ambiente RuFaS-PesquisaOperacional. Todos os códigos, modelos matemáticos e artefatos de dados estão disponíveis no repositório local.*
