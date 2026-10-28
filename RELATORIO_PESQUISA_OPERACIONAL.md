@@ -2,9 +2,9 @@
 
 **Projeto:** RuFaS - Pesquisa Operacional & Simulação Biofísica  
 **Autores:** Ivânio José da Rocha Júnior; Robson Pereira da Silva  
-**Data:** 24 de Outubro de 2026  
+**Data:** 28 de Outubro de 2026  
 **Ambiente:** Python 3.12/3.13, SciPy (`linprog` HiGHS / `minimize` SLSQP), Solver Simplex Nativo (Pure Python/NumPy), Flask Web App  
-**Repositório:** [RuFaS-PesquisaOperacional](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev)
+**Repositório:** [RuFaS-PesquisaOperacional](https://github.com/ivaniojr/RuFaS-PesquisaOperacional.git)
 
 ---
 
@@ -19,8 +19,8 @@ O ecossistema agora conta com **3 solvers integrados** para análise comparativa
 
 O relatório está estruturado em 7 seções fundamentais:
 1. **Os Solvers Lineares e suas Implementações:** Modelagem canônica de PL, arquitetura via SciPy HiGHS e formulação do Simplex Nativo em Duas Fases com álgebra de tableaus.
-2. **Registro Completo das Modificações:** Alterações no núcleo do RuFaS, inclusão do módulo `pure_simplex_solver.py`, auditoria de falhas, supressão de métricas enganosas e rebalanceamento mineral.
-3. **Guia de Operação da Interface Gráfica:** Descrição aprofundada dos módulos web, fluxos de uso, sensibilidade de preços, aba interativa **Tableaus Simplex** e controle de simulações.
+2. **Registro Completo das Modificações:** Alterações no núcleo do RuFaS (`RUFAS/`), inclusão dos módulos `pure_simplex_solver.py` e `cows_analytics.py`, auditoria de falhas, supressão de métricas enganosas e rebalanceamento mineral.
+3. **Guia de Operação da Interface Gráfica:** Descrição aprofundada dos 7 módulos web, fluxos de uso, sensibilidade de preços, aba interativa **Tableaus Simplex**, ficha individual zootécnica **Ficha das Vacas (IOFC)** e controle de simulações.
 4. **Limitações dos Modelos (Linear vs. Não-Linear / NASEM vs. NRC):** Pressupostos biológicos, trade-offs matemáticos e restrições de escala.
 5. **Comparação de Resultados Reais:** Análise empírica comparando os três solvers com simulações de 365 dias, indicadores zootécnicos e econômicos (DMI, Custo, Leite, IOFC e Eficiência).
 6. **Conclusões e Recomendações:** Síntese zootécnica e metodológica para suporte à decisão.
@@ -116,7 +116,7 @@ $$\sum_{i=1}^n (\text{EE}_i - \text{EE}_{\max}) \cdot x_i \le 0$$
 
 ### 1.4 Implementação Computacional no Código
 
-A implementação do solver linear reside na classe [RationOptimizer](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/ration_optimizer.py), no método `_attempt_linear_optimization`.
+A implementação do solver linear reside na classe [RationOptimizer](RUFAS/biophysical/animal/ration/ration_optimizer.py), no método `_attempt_linear_optimization`.
 
 ```python
 # Trecho de RUFAS/biophysical/animal/ration/ration_optimizer.py
@@ -168,7 +168,7 @@ def _attempt_linear_optimization(
 
 ### 1.5 O Solver Linear Nativo Autônomo: Método Simplex em Duas Fases do Zero
 
-Para fins acadêmicos, didáticos e de validação científica independente, foi desenvolvido e integrado um solver linear nativo autônomo em [RUFAS/biophysical/animal/ration/pure_simplex_solver.py](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/pure_simplex_solver.py).
+Para fins acadêmicos, didáticos e de validação científica independente, foi desenvolvido e integrado um solver linear nativo autônomo em [RUFAS/biophysical/animal/ration/pure_simplex_solver.py](RUFAS/biophysical/animal/ration/pure_simplex_solver.py).
 
 Este solver **não utiliza nenhuma biblioteca externa de otimização matemática** (como `scipy.optimize.linprog`, PuLP ou CVXPY), baseando-se exclusivamente em estruturas vetoriais e matriciais com NumPy para as operações elementares de linha de Gauss-Jordan.
 
@@ -239,7 +239,7 @@ Esse arquivo (`output/tableaus_simplex_latest.json`) alimenta diretamente o comp
 
 #### 1.5.5 Explicação Passo a Passo do Código do LP Simplex (Arquitetura e Fluxo de Execução)
 
-O módulo [`pure_simplex_solver.py`](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/pure_simplex_solver.py) implementa a classe `TwoPhaseSimplexSolver`, projetada para resolver com exatidão analítica o problema de programação linear canônico da ração bovina, sem recorrer a bibliotecas externas de otimização (como SciPy, GLPK ou COIN-OR), utilizando exclusivamente álgebra linear com NumPy.
+O módulo [`pure_simplex_solver.py`](RUFAS/biophysical/animal/ration/pure_simplex_solver.py) implementa a classe `TwoPhaseSimplexSolver`, projetada para resolver com exatidão analítica o problema de programação linear canônico da ração bovina, sem recorrer a bibliotecas externas de otimização (como SciPy, GLPK ou COIN-OR), utilizando exclusivamente álgebra linear com NumPy.
 
 Abaixo é apresentado o detalhamento do funcionamento de cada bloco lógico, estrutura de dados e método do algoritmo:
 
@@ -374,8 +374,10 @@ Todas as intervenções no repositório foram realizadas com o princípio da int
 
 | Arquivo | Linhas Chave | Natureza da Alteração | Finalidade |
 | :--- | :--- | :--- | :--- |
-| [pure_simplex_solver.py](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/pure_simplex_solver.py) | **Novo Módulo** (L1-442) | Implementação do Solver Simplex em Duas Fases do zero | Permite resolver o modelo de ração linear sem nenhuma dependência externa (`scipy.optimize.linprog`), gravando o histórico completo de tableaus, variáveis entrantes/saintes e pivôs. |
-| [ration_optimizer.py](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/RUFAS/biophysical/animal/ration/ration_optimizer.py) | L925-945, L962-1089, L1091-1273 | Adição dos métodos `_attempt_linear_optimization` e `_attempt_native_simplex_optimization` | Suporta os modos `linear` (HiGHS) e `linear_native` (Simplex do zero), serializando automaticamente os snapshots para `output/tableaus_simplex_latest.json`. |
+| [pure_simplex_solver.py](RUFAS/biophysical/animal/ration/pure_simplex_solver.py) | **Novo Módulo** (L1-442) | Implementação do Solver Simplex em Duas Fases do zero | Permite resolver o modelo de ração linear sem nenhuma dependência externa (`scipy.optimize.linprog`), gravando o histórico completo de tableaus, variáveis entrantes/saintes e pivôs. |
+| [ration_optimizer.py](RUFAS/biophysical/animal/ration/ration_optimizer.py) | L925-945, L962-1089, L1091-1273 | Adição dos métodos `_attempt_linear_optimization` e `_attempt_native_simplex_optimization` | Suporta os modos `linear` (HiGHS) e `linear_native` (Simplex do zero), serializando automaticamente os snapshots para `output/tableaus_simplex_latest.json`. |
+| [simulation_engine.py](RUFAS/simulation_engine.py) | L832 | Emissão de telemetria diária de progresso (`print(f"Day: ...", flush=True)`) | Permite à aplicação web e rotas REST rastrearem o avanço dia a dia da simulação em tempo real com barra de progresso. |
+| [util.py](RUFAS/util.py) | L668-685 | Implementação da função `safe_match` com regex resiliente | Evita interrupções na filtragem de variáveis de saída quando padrões contêm caracteres curingas especiais (*). |
 
 ### 2.2 Modificações no Módulo Analítico e de PO (`web_app/po_analytics.py`)
 
@@ -401,82 +403,87 @@ Todas as intervenções no repositório foram realizadas com o princípio da int
    * A função `compare_solvers` foi estendida para comparar simultaneamente os 3 solvers (`linear_highs`, `native_simplex` e `nonlinear_slsqp`).
    * Implementada a função `get_simplex_tableaus_data` para carregar dados de tableaus tanto do arquivo corrente `output/tableaus_simplex_latest.json` quanto de simulações arquivadas.
 
-### 2.3 Rastreamento e Gestão de Simulações (`web_app/simulation_tracker.py`)
+### 2.3 Módulo de Análise e Ficha das Vacas (`web_app/cows_analytics.py`)
+
+Foi desenvolvido um novo motor de inteligência zootécnica e bioeconômica individual para processamento das saídas das simulações:
+1. **Varredura Resiliente de Simulações e Fazendas (`get_cows_simulations_and_farms`):**
+   * Escaneia o diretório `output/simulacoes/` e correlaciona pastas, manifestos JSON e tabelas brutas de dados diários dos animais (`simulacao_dados_completos.csv` ou variáveis salvas do freestall).
+2. **Cálculo Individualizado de IOFC e Benchmarks do Rebanho (`get_cows_scorecard`):**
+   * Extrai e calcula para cada vaca simulada: dias em lactação (DIM), paridade, consumo individual de matéria seca (CMS/DMI), produção média diária de leite, sólidos (gordura e proteína), emissão entérica de $\text{CH}_4$, custo alimentar diário e receita bruta.
+   * Calcula a **Margem sobre o Custo Alimentar (IOFC)**:
+     $$\text{IOFC}_k = (\text{Produção de Leite}_k \times P_{\text{leite}}) - \text{Custo da Ração}_k$$
+   * Constrói os **Benchmarks Gerais do Rebanho** (médias ponderadas do lote de lactação) para servir de régua comparativa.
+3. **Rankings Zootécnicos e Detecção de Disparidades:**
+   * Ordena e separa automaticamente as **Top N Melhores Vacas** (maior superávit operacional) e as **Top N Piores Vacas** (menor margem / risco de déficit), calculando o desvio relativo individual contra a média do rebanho ($\Delta_{\text{rebanho}}\%$).
+4. **Séries Temporais das Curvas de Lactação (`get_cow_individual_timeseries`):**
+   * Recupera a trajetória diária completa de cada animal (produção de leite dia a dia, CMS e evolução no tempo), viabilizando a renderização de gráficos individuais de persistência de lactação.
+
+### 2.4 Rastreamento e Gestão de Simulações (`web_app/simulation_tracker.py`)
 
 * **Estrutura de Pastas Imutáveis:** Cada simulação executada é isolada em `output/simulacoes/<FAZENDA>_SIM<N>_<TIMESTAMP>/` com subpastas `/parametros/`, `/resultados/` e `/logs/`.
 * **Preservação de Tableaus Históricos:** O arquivo `tableaus_simplex_latest.json` é copiado para `resultados/tableaus_simplex.json` na pasta da simulação correspondente, e o manifesto registra o metadado `"has_tableaus": true`.
 * **Manifesto de Auditoria (`manifesto.json`):** Registro de data/hora, duração, padrão nutricional, solver utilizado (`linear_highs`, `linear_native` ou `nonlinear`), status de convergência, restrições ativas e arquivo CSV correspondente.
 
-### 2.4 Interface Web e Experiência do Usuário (`web_app/static/`)
+### 2.5 Interface Web e Experiência do Usuário (`web_app/static/`)
 
-* **Nova Aba Interativa "🧮 Tableaus Simplex":** Permite a inspeção visual e didática de cada iteração da formulação da ração.
-* **Componentes da Aba de Tableaus:**
+* **Aba Interativa "🧮 Tableaus Simplex":** Permite a inspeção visual e didática de cada iteração da formulação da ração.
   * Controles de navegação: botões ⏮ Início, ◀ Anterior, Próximo ▶, Fim ⏭ e slider com indicador de progresso.
   * Badges de Fase: Azul para `Fase 1: Viabilidade (min W)`, Roxo para `Fase 2: Otimização de Custo (min Z)` e Verde para `Solução Ótima`.
   * Cartões de Diagnóstico: Variável que entra, Variável que sai, Elemento pivô e Função Objetivo em tempo real.
   * Tabela Matricial Dinâmica com Realces CSS: `.pivot-cell` (amarelo), `.pivot-col-highlight` (azul) e `.pivot-row-highlight` (vermelho).
   * Tabela de Composição Ótima da Dieta gerada pelo solver nativo com inclusões em kg MS, percentuais e custos.
-* **Badges Visuais no Histórico de Simulações:**
-  * Tag Roxa para `LP Nativo (Simplex)`, Azul para `LP (HiGHS)` e Verde para `NLP (SLSQP)`.
-  * Botão direto `🧮 Ver Tableaus` em cada simulação do histórico que possui tableaus arquivados, alternando automaticamente para a aba com os dados carregados.
+* **Nova Aba "🐄 Ficha das Vacas (IOFC)":**
+  * Seletor dinâmico de fazendas e simulações com recarregamento assíncrono.
+  * Painel superior com 8 KPIs de benchmark do rebanho: Leite médio, CMS, Custo, IOFC, Eficiência Alimentar, Sólidos, $\text{CH}_4$ e Efetivo em lactação.
+  * Gráfico comparativo macro (Top Melhores vs. Média do Rebanho vs. Piores) em Chart.js.
+  * Tabelas segmentadas de Top Melhores e Piores vacas com indicadores zootécnicos e diferencial financeiro.
+  * Modal interativo com ficha detalhada da vaca, tabela de confronto direto com a média do lote e curva individual contínua de l## 3. Explicações sobre a Interface Gráfica e seu Uso
 
-### 2.5 Servidor e Rotas REST (`web_app/app.py`)
-
-* Endpoint `GET /api/po/tableaus`: Suporta parâmetro opcional `folder=<NOME_DA_PASTA>` para retornar tableaus de simulações passadas arquivadas ou o tableau mais recente executado.
-
----
-
-## 3. Explicações sobre a Interface Gráfica e seu Uso
-
-A interface do RuFaS foi concebida como uma central de controle e suporte à decisão agropecuária, acessível pelo navegador em `http://localhost:5000/`.
+A interface do RuFaS foi concebida como uma central integrada de controle, suporte à decisão agropecuária e auditoria matricial de Pesquisa Operacional, acessível pelo navegador em `http://127.0.0.1:5000/`.
 
 ```
-+-----------------------------------------------------------------------------------------------------+
-| RuFaS - Sistema Integrado de Simulação Biofísica & Pesquisa Operacional                             |
-+-----------------------------------------------------------------------------------------------------+
-| [1. Painel Geral]  [2. Cenários & Fazendas]  [3. PO & Insumos]  [4. Resultados]  [5. Histórico]    |
-+-----------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------------------------------------------------+
+| RuFaS - Sistema Integrado de Simulação Biofísica & Pesquisa Operacional                                                                                 |
++---------------------------------------------------------------------------------------------------------------------------------------------------------+
+| [⚙️ Config & Insumos] [🚀 Execução & Logs] [📊 Dashboard Geral] [📐 PO & Sensibilidade] [🧮 Tableaus Simplex] [🐄 Ficha das Vacas] [📁 Histórico]       |
++---------------------------------------------------------------------------------------------------------------------------------------------------------+
 ```
 
-### 3.1 Aba "Cenários & Fazendas"
-Esta aba define a fazenda ativa e a base genética e nutricional do rebanho:
-1. **Perfil da Fazenda:** Permite selecionar perfis cadastrados (ex: Fazenda Ouro Preto - GO).
-2. **Padrão Nutricional (`nutrient_standard`):**
-   * Alternância entre **NASEM (2021)** e **NRC (2001)**.
-   * Ao selecionar um novo padrão e clicar em **"Aplicar & Salvar Cenário"**, o sistema sincroniza os arquivos de configuração e automaticamente recarrega a formulação padrão balanceada correspondente àquele padrão.
-3. **Manejo do Rebanho:** Número de vacas em lactação, frequência de ordenhas diárias (2x ou 3x) e fração de vacas em lactação.
-4. **Mitigação de Metano Entérico:** Inclusão de aditivos mitigadores como **3-NOP (Bovaer)**, **Monensina Sódica**, **Óleos Essenciais** ou **Macroalgas (*Asparagopsis*).**
+### 3.1 Aba "⚙️ Configuração & Insumos" (`tab-config`)
+Esta aba reúne a parametrização biofísica da fazenda, período temporal e a gestão bromatológica dos insumos:
+1. **Cenário & Período de Simulação:** Permite selecionar o arquivo `task.json`, definir o intervalo de datas (Ano Inicial/Final e Dia Inicial/Final do calendário juliano) e o otimizador ativo (`linear_native`, `linear` ou `nonlinear`).
+2. **Perfil da Propriedade (Cenário Editável):** Permite carregar ou alterar perfis cadastrados (ex: Fazenda Ouro Preto - GO), número de vacas em lactação, frequência de ordenha (2x ou 3x) e fração de lactantes.
+3. **Padrão Nutricional (`nutrient_standard`):**
+   * Alternância em tempo real entre **NASEM (2021)** e **NRC (2001)**.
+   * O botão **"Aplicar & Salvar Cenário"** sincroniza automaticamente as restrições metabólicas e carrega a formulação basal recomendada.
+4. **Mitigação de Metano Entérico:** Inclusão de aditivos e tecnologias mitigadoras como **3-NOP (Bovaer)**, **Monensina Sódica**, **Óleos Essenciais** ou **Macroalgas (*Asparagopsis*)**.
+5. **Tabela de Gestão de Insumos da Ração:**
+   * Lista todos os alimentos da dieta (volumosos, concentrados energéticos, proteicos e fontes minerais puras).
+   * Permite editar o **Custo Unitário ($\$ / \text{kg MS}$)** e a **Tolerância de Inclusão ($\pm \%$)** com persistência imediata via botão *"Salvar Configurações e Insumos"*.
 
-### 3.2 Aba "Pesquisa Operacional & Insumos"
-É o ambiente de modelagem e análise econômica da dieta:
-1. **Seletor do Modo de Otimização (Solver):**
-   * `Linear (HiGHS Simplex)`: Ideal para formulação clássica rápida de custo mínimo.
-   * `Não-Linear (SLSQP)`: Ideal para interações mecanísticas profundas entre consumo e cinética ruminal.
-2. **Tabela de Gestão de Insumos:**
-   * Lista todos os insumos da dieta com seus respectivos IDs bromatológicos, tipo (Volumoso, Concentrado Energético, Proteico ou Mineral).
-   * Permite editar em tempo real o **Custo Unitário ($\$ / \text{kg MS}$)** e a **Tolerância de Inclusão ($\pm \%$)**.
-   * Botão de ativar/desativar insumo da cesta de formulação.
-3. **Botão "Salvar Configurações e Insumos":** Persiste os parâmetros modificados nos arquivos de entrada do RuFaS.
-4. **Painel de Resultados da Otimização:**
-   * **Custo da Dieta por Vaca/Dia:** Valor monetário direto da ração formulada.
+### 3.2 Aba "🚀 Execução & Logs" (`tab-run`)
+* Responsável pelo disparo assíncrono do motor de simulação RuFaS.
+* Apresenta barra de progresso diária com percentual em tempo real (baseada na telemetria `Day: X / Y`), cronômetro decorrido, estimativa de conclusão e terminal de logs com saída padronizada do processo.
+
+### 3.3 Aba "📊 Dashboard Geral" (`tab-dashboard`)
+* Painel sintético que consolida os resultados macro da simulação recém-executada.
+* Apresenta os cartões de indicadores globais: Produção Média de Leite (kg/vaca/dia), Consumo Médio de Matéria Seca (CMS / DMI), Eficiência de Conversão Alimentar, Emissão de Metano Entérico ($\text{g CH}_4/\text{dia}$) e Balanço de Nitrogênio.
+* Gráficos dinâmicos com séries temporais de produção e curvas zootécnicas de rebanho.
+
+### 3.4 Aba "📐 Pesquisa Operacional & Sensibilidade" (`tab-po`)
+É o ambiente de diagnóstico analítico da dieta e teste de estresse de mercado:
+1. **Painel de Resultados Econômicos da Otimização:**
+   * **Custo da Dieta por Vaca/Dia:** Valor monetário formulado pelo solver ativo.
    * **Margem sobre Custo Alimentar (IOFC):** $\text{Receita do Leite} - \text{Custo Alimentar}$.
    * **Consumo de Matéria Seca (CMS / DMI):** Quantidade consumida por cabeça.
    * **Eficiência Alimentar:** Quilogramas de leite produzidos por kg de matéria seca ingerida ($\text{kg Leite} / \text{kg MS}$).
-5. **Simulador de Sensibilidade Econômica:**
-   * Gráfico interativo que projeta a oscilação do custo da dieta e do IOFC quando o preço de um insumo crítico (ex: Milho Grão ou Farelo de Soja) varia entre $-30\%$ e $+30\%$.
-
-### 3.3 Aba "Painel Geral / Executar Simulação"
-* Responsável pelo disparo do motor de simulação RuFaS.
-* Apresenta barra de progresso em tempo real, cronômetro de duração, estimativa de conclusão e terminal de logs com saída padronizada do processo.
-
-### 3.4 Aba "Histórico de Simulações"
-* Tabela cronológica completa de todas as rodadas executadas com badges de identificação de solver (`LP HiGHS`, `NLP SLSQP` ou `LP Nativo Simplex`).
-* Permite auditar qual solver foi empregado em cada simulação e verificar se a solução convergiu com sucesso ou se acionou fallback.
-* Conta com atalho **"🧮 Ver Tableaus"** para simulações executadas com o solver nativo, botão **"Abrir Pasta"** no gerenciador de arquivos e **"Ver Detalhes"** com parâmetros e manifesto JSON completos.
+2. **Comparador Multissolver:** Exibe tabela lado a lado com os resultados obtidos pelos solvers Linear HiGHS, Simplex Nativo e SLSQP Não-Linear.
+3. **Simulador de Sensibilidade Econômica:**
+   * Gráfico interativo que projeta a oscilação do custo da dieta e do IOFC quando o preço de um insumo crítico (ex: Milho Grão moído ou Farelo de Soja) varia entre $-30\%$ e $+30\%$.
 
 ### 3.5 Aba "🧮 Tableaus Simplex" (Inspeção Didática Passo a Passo)
 
-A nova aba **Tableaus Simplex** foi concebida para atender à necessidade pedagógica e de auditoria de Pesquisa Operacional, tornando transparente a "caixa-preta" da resolução matricial:
+A aba **Tableaus Simplex** foi concebida para atender à necessidade pedagógica e de auditoria de Pesquisa Operacional, tornando transparente a "caixa-preta" da resolução matricial:
 
 ```
 +-----------------------------------------------------------------------------------------------------+
@@ -515,6 +522,45 @@ A nova aba **Tableaus Simplex** foi concebida para atender à necessidade pedag�
    * **Linha de Custos Reduzidos ($\bar{c} - z$):** Exibição em vermelho dos insumos com potencial de redução de custo e em verde/cinza dos insumos estabilizados.
 5. **Painel de Dieta Ótima Formulada:**
    * Apresenta o consumo em kg MS de cada ingrediente, percentual na mistura total e impacto no custo diário por cabeça.
+
+### 3.6 Aba "🐄 Ficha das Vacas (IOFC)" (Desempenho Individual e Curvas de Lactação)
+
+A aba **Ficha das Vacas** introduz o suporte à decisão no nível de zootecnia de precisão, permitindo ao produtor ou consultor avaliar a heterogeneidade biológica e o retorno econômico individual de cada animal do lote:
+
+```
++-----------------------------------------------------------------------------------------------------------------------+
+| 🐄 Ficha Zootécnica & Bioeconômica das Vacas (Income Over Feed Cost - IOFC)                                            |
++-----------------------------------------------------------------------------------------------------------------------+
+| Fazenda: [Fazenda Ouro Preto ▼]  Simulação: [SIM018 - Linear Nativo ▼]  Limite: [10 vacas ▼]  Preço Leite ($): [0.45] |
++-----------------------------------------------------------------------------------------------------------------------+
+| 📊 Médias Gerais do Rebanho (Benchmarks Ponderados):                                                                   |
+| [🥛 Leite: 48.26 kg/d] [🌾 CMS: 28.26 kg] [💰 Custo: $3.87/d] [📈 IOFC: $17.85/d] [⚖️ Efic: 1.71] [🌿 CH4: 382 g/d]   |
++-----------------------------------------------------------------------------------------------------------------------+
+| 🏆 Top Melhores Vacas por IOFC (Superávit)           | ⚠️ Top Piores Vacas por IOFC (Risco Operacional)               |
+| #1 Vaca 102 | Leite: 56.4 kg | IOFC: $21.40 (+19.8%)  | #1 Vaca 084 | Leite: 34.1 kg | IOFC: $11.20 (-37.2%)          |
+| #2 Vaca 045 | Leite: 54.1 kg | IOFC: $20.25 (+13.4%)  | #2 Vaca 019 | Leite: 36.8 kg | IOFC: $12.50 (-29.9%)          |
++-----------------------------------------------------------------------------------------------------------------------+
+```
+
+1. **Toolbar de Seleção e Parâmetros Dinâmicos:**
+   * **Filtro de Fazenda & Simulação:** Permite navegar instantaneamente entre quaisquer rodadas arquivadas na pasta `output/simulacoes/`.
+   * **Seletor de Quantidade (Limite):** Exibe 5, 10, 15, 20, 30, 50 ou todas as vacas do rebanho avaliado.
+   * **Preço do Leite Parametrizável ($/kg):** Permite simular choques de preço de venda do leite na fazenda (ex: de $\$0,35$ a $\$0,60/\text{kg}$), recalculando instantaneamente o IOFC e reorganizando as tabelas de classificação sem necessidade de reprocessar o RuFaS.
+2. **Painel de Benchmarks Gerais do Rebanho:**
+   * Apresenta 8 cards com as médias ponderadas de todo o lote em lactação: Produção Média de Leite, Consumo Médio de MS, Custo Médio da Ração, Margem IOFC Média, Eficiência Alimentar ($\text{kg Leite}/\text{kg MS}$), Sólidos de Gordura e Proteína, Emissão de Metano Entérico e Total de Vacas Avaliadas.
+3. **Gráfico Comparativo Macro (Top vs. Média vs. Piores):**
+   * Gráfico visual de barras que ilustra a disparidade de margem econômica e produção entre o estrato superior, a média do lote e o estrato inferior.
+4. **Tabelas de Ranking Top Melhores e Top Piores por IOFC:**
+   * Listagem com ID da vaca, paridade, dias em lactação (DIM), produção diária, consumo individual, custo da ração, receita bruta, valor líquido do IOFC, desvio relativo contra a média do rebanho ($\Delta_{\text{rebanho}}\%$) e botão de ação individual **"Ver Ficha"**.
+5. **Modal com Ficha Técnica Individual da Vaca:**
+   * Ao clicar em qualquer vaca, abre-se uma janela modal com a ficha completa do animal:
+     * **Tabela de Confronto Direto:** Compara cada indicador da vaca contra a média geral do rebanho, exibindo a diferença numérica absoluta e a porcentagem de desvio.
+     * **Curva Contínua de Lactação (Chart.js):** Gráfico de linha que plota a evolução diária da produção de leite (kg/dia) ao longo de todos os dias da simulação, permitindo diagnosticar o pico de lactação e a persistência zootécnica daquele indivíduo.
+
+### 3.7 Aba "📁 Histórico de Simulações" (`tab-history`)
+* Tabela cronológica completa de todas as rodadas executadas com badges de identificação de solver (`LP HiGHS`, `NLP SLSQP` ou `LP Nativo Simplex`).
+* Permite auditar qual solver foi empregado em cada simulação e verificar se a solução convergiu com sucesso ou se acionou fallback.
+* Conta com atalho **"🧮 Ver Tableaus"** para simulações executadas com o solver nativo, botão **"Abrir Pasta"** no gerenciador de arquivos e **"Ver Detalhes"** com parâmetros e manifesto JSON completos.
 
 ---
 
@@ -621,7 +667,7 @@ Esta seção fornece o passo a passo completo e reprodutível para configurar o 
 ### 7.1 Pré-requisitos de Sistema
 
 Antes de iniciar, certifique-se de possuir instalado em sua máquina:
-* **Python:** Versão **3.12** ou **3.13** (conforme especificado no arquivo [`pyproject.toml`](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/pyproject.toml): `>=3.12, <3.14`).
+* **Python:** Versão **3.12** ou **3.13** (conforme especificado no arquivo [`pyproject.toml`](pyproject.toml): `>=3.12, <3.14`).
 * **Git:** Para clonagem e versionamento do código.
 * **Navegador Web Moderno:** Google Chrome, Mozilla Firefox, Microsoft Edge ou Safari.
 
@@ -637,22 +683,22 @@ Recomenda-se fortemente a utilização de um ambiente virtual isolado para evita
 #### No Windows (PowerShell ou Prompt de Comando):
 ```powershell
 # 1. Navegue até o diretório do projeto
-cd C:\Users\ivani\OneDrive\IFG_Goias\PesquisaOperacional\Projeto_Final\RuFaS-dev\RuFaS-dev
+cd RuFaS-PesquisaOperacional
 
 # 2. Crie o ambiente virtual (caso ainda não exista)
-python -m venv ..\..\venv
+python -m venv venv
 
 # 3. Ative o ambiente virtual
 # No PowerShell:
-..\..\venv\Scripts\Activate.ps1
+.\venv\Scripts\Activate.ps1
 # No Prompt de Comando (CMD):
-..\..\venv\Scripts\activate.bat
+.\venv\Scripts\activate.bat
 ```
 
 #### No Linux / macOS (Bash / Zsh):
 ```bash
 # 1. Navegue até a raiz do repositório
-cd RuFaS-dev/RuFaS-dev
+cd RuFaS-PesquisaOperacional
 
 # 2. Crie o ambiente virtual
 python3 -m venv venv
@@ -695,12 +741,12 @@ O ecossistema dispõe de **três modos de execução**, adaptados para diferente
 Inicia o servidor Flask local e abre automaticamente o painel completo no seu navegador padrão.
 
 * **No Windows:**
-  Dê dois cliques no arquivo [`iniciar_painel.bat`](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/iniciar_painel.bat) ou execute no terminal:
+  Dê dois cliques no arquivo [`iniciar_painel.bat`](iniciar_painel.bat) ou execute no terminal:
   ```cmd
   iniciar_painel.bat
   ```
 * **No Linux / macOS:**
-  Dê permissão de execução e dispare o script [`iniciar_painel.sh`](file:///c:/Users/ivani/OneDrive/IFG_Goias/PesquisaOperacional/Projeto_Final/RuFaS-dev/RuFaS-dev/iniciar_painel.sh):
+  Dê permissão de execução e dispare o script [`iniciar_painel.sh`](iniciar_painel.sh):
   ```bash
   chmod +x iniciar_painel.sh
   ./iniciar_painel.sh
@@ -714,11 +760,14 @@ Após iniciar, o painel estará disponível no endereço:
 👉 **[http://127.0.0.1:5000](http://127.0.0.1:5000)**
 
 Na interface web, você poderá:
-1. Alternar entre os padrões **NASEM** e **NRC** na aba *"Cenários & Fazendas"*.
+1. Alternar entre os padrões **NASEM** e **NRC** na aba *"Configuração & Insumos"*.
 2. Selecionar entre os solvers **Linear (HiGHS)**, **Linear Nativo (Simplex Duas Fases)** ou **Não-Linear (SLSQP)**.
-3. Disparar simulações com barra de progresso em tempo real na aba *"Painel Geral"*.
-4. Inspecionar cada passo matricial na aba interativa *"🧮 Tableaus Simplex"*.
-5. Visualizar a ficha de desempenho individual e zootécnico de cada vaca do rebanho na aba *"Ficha das Vacas"*.
+3. Disparar simulações com barra de progresso em tempo real na aba *"Execução & Logs"*.
+4. Analisar os KPIs biofísicos e curvas macro na aba *"Dashboard Geral"*.
+5. Testar sensibilidade econômica de insumos e comparar os solvers na aba *"Pesquisa Operacional & Sensibilidade"*.
+6. Inspecionar cada passo matricial na aba interativa *"🧮 Tableaus Simplex"*.
+7. Visualizar a ficha de desempenho individual e zootécnico de cada vaca do rebanho na aba *"🐄 Ficha das Vacas"*.
+8. Auditar o histórico de simulações com manifestos na aba *"📁 Histórico de Simulações"*.
 
 ---
 
