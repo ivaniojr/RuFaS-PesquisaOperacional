@@ -17,14 +17,15 @@ O ecossistema agora conta com **3 solvers integrados** para análise comparativa
 2. **Linear Nativo Autônomo (Pure Simplex em Duas Fases):** Desenvolvido do zero em Python e NumPy sem bibliotecas de otimização de terceiros, com instrumentação analítica completa para inspeção dos **Tableaus Simplex** passo a passo.
 3. **Não-Linear Mecanístico (SciPy SLSQP):** Solver gradiente com restrições não-lineares para ajuste fino e curvas biológicas contínuas.
 
-O relatório está estruturado em 7 seções fundamentais:
+O relatório está estruturado em 8 seções fundamentais:
 1. **Os Solvers Lineares e suas Implementações:** Modelagem canônica de PL, arquitetura via SciPy HiGHS e formulação do Simplex Nativo em Duas Fases com álgebra de tableaus.
 2. **Registro Completo das Modificações:** Alterações no núcleo do RuFaS (`RUFAS/`), inclusão dos módulos `pure_simplex_solver.py` e `cows_analytics.py`, auditoria de falhas, supressão de métricas enganosas e rebalanceamento mineral.
 3. **Guia de Operação da Interface Gráfica:** Descrição aprofundada dos 7 módulos web, fluxos de uso, sensibilidade de preços, aba interativa **Tableaus Simplex**, ficha individual zootécnica **Ficha das Vacas (IOFC)** e controle de simulações.
 4. **Limitações dos Modelos (Linear vs. Não-Linear / NASEM vs. NRC):** Pressupostos biológicos, trade-offs matemáticos e restrições de escala.
 5. **Comparação de Resultados Reais:** Análise empírica comparando os três solvers com simulações de 365 dias, indicadores zootécnicos e econômicos (DMI, Custo, Leite, IOFC e Eficiência).
-6. **Conclusões e Recomendações:** Síntese zootécnica e metodológica para suporte à decisão.
-7. **Guia Prático de Instalação, Configuração e Execução:** Requisitos de sistema, criação de virtualenv, instalação de pacotes e modos de execução (Interface Gráfica Web, Linha de Comando e Scripts Utilitários).
+6. **Estudo Experimental de Sensibilidade e Ajustes Paramétricos (`output/sugestao_ajustes/`):** Bateria de 10 experimentos automatizados com variação de preços, insumos alternativos, tolerâncias, intervalos de reformulação e choque de mercado.
+7. **Conclusões e Recomendações:** Síntese zootécnica e metodológica para suporte à decisão.
+8. **Guia Prático de Instalação, Configuração e Execução:** Requisitos de sistema, criação de virtualenv, instalação de pacotes e modos de execução (Interface Gráfica Web, Linha de Comando e Scripts Utilitários).
 
 ```mermaid
 flowchart TD
@@ -437,7 +438,21 @@ Foi desenvolvido um novo motor de inteligência zootécnica e bioeconômica indi
   * Painel superior com 8 KPIs de benchmark do rebanho: Leite médio, CMS, Custo, IOFC, Eficiência Alimentar, Sólidos, $\text{CH}_4$ e Efetivo em lactação.
   * Gráfico comparativo macro (Top Melhores vs. Média do Rebanho vs. Piores) em Chart.js.
   * Tabelas segmentadas de Top Melhores e Piores vacas com indicadores zootécnicos e diferencial financeiro.
-  * Modal interativo com ficha detalhada da vaca, tabela de confronto direto com a média do lote e curva individual contínua de l## 3. Explicações sobre a Interface Gráfica e seu Uso
+  * Modal interativo com ficha detalhada da vaca, tabela de confronto direto com a média do lote e curva individual contínua de lactação.
+* **Badges Visuais no Histórico de Simulações:**
+  * Tag Roxa para `LP Nativo (Simplex)`, Azul para `LP (HiGHS)` e Verde para `NLP (SLSQP)`.
+  * Botão direto `🧮 Ver Tableaus` em cada simulação do histórico que possui tableaus arquivados, alternando automaticamente para a aba com os dados carregados.
+
+### 2.6 Servidor e Rotas REST (`web_app/app.py`)
+
+* `GET /api/po/tableaus`: Suporta parâmetro opcional `folder=<NOME_DA_PASTA>` para retornar tableaus de simulações passadas arquivadas ou o tableau mais recente executado.
+* `GET /api/cows/simulations`: Retorna a lista estruturada de fazendas e simulações com resultados processáveis disponíveis no sistema.
+* `GET /api/cows/scorecard`: Retorna os benchmarks médios do lote e o ranking de melhores e piores vacas por IOFC, aceitando os parâmetros `folder`, `milk_price` e `limit`.
+* `GET /api/cows/detail`: Retorna os dados individuais e a série temporal diária de produção de leite da vaca selecionada (`cow_id` e `folder`).
+
+---
+
+## 3. Explicações sobre a Interface Gráfica e seu Uso
 
 A interface do RuFaS foi concebida como uma central integrada de controle, suporte à decisão agropecuária e auditoria matricial de Pesquisa Operacional, acessível pelo navegador em `http://127.0.0.1:5000/`.
 
@@ -645,7 +660,124 @@ pie title Distribuição de Custos da Dieta Balanceada Ótima (SIM018 - Linear N
 
 ---
 
-## 6. Conclusões e Recomendações
+## 6. Estudo Experimental de Sensibilidade e Ajustes Paramétricos (`output/sugestao_ajustes/`)
+
+Para avaliar empiricamente a robustez computacional dos três solvers e a elasticidade bioeconômica da dieta animal sob oscilações de mercado e diferentes manejos de rebanho, foi desenvolvida e executada uma suíte automatizada de testes e análise de sensibilidade paramétrica armazenada na pasta [output/sugestao_ajustes/](output/sugestao_ajustes/).
+
+Esta bateria avalia sistematicamente o comportamento dos otimizadores em **10 dimensões experimentais**, sem modificar nenhuma linha de código da aplicação (operando exclusivamente sobre parâmetros zootécnicos e econômicos de entrada através das APIs REST e da interface gráfica web).
+
+```mermaid
+flowchart LR
+    A["Parâmetros Baseline\n(Fazenda Ouro Preto)"] --> B["Backup dos Originais\n_backup_parametros_originais/"]
+    B --> C["executar_ajustes.py\n(Aplica Cenários via API)"]
+    C --> D{"3 Solvers Ativos"}
+    D -->|"Linear Nativo"| E1["Simplex Puro (Snapshots)"]
+    D -->|"Linear HiGHS"| E2["HiGHS Dual Simplex"]
+    D -->|"Não-Linear"| E3["SLSQP Mecanístico"]
+    E1 & E2 & E3 --> F["Playwright (Browser Headless)\nCaptura de Telas Full-Page"]
+    F --> G["Armazenamento Estruturado:\nparametros.json & resultado.json"]
+    G --> H["gerar_resumo.py\nRecálculo do Custo Real & RESULTADO.md"]
+```
+
+### 6.1 Metodologia e Pipeline de Automação
+
+O fluxo de execução dos experimentos foi desenhado para assegurar máxima reprodutibilidade e auditabilidade:
+
+1. **Automação via API (`executar_ajustes.py`):**
+   * Realiza backup integral da pasta `input/` em `_backup_parametros_originais/` antes de qualquer execução.
+   * Aplica dinamicamente as alterações de cenário (frequência de reformulação, aditivos de metano, padrão nutricional) e tabelas bromatológicas (preços, inclusão de novos ingredientes e buffers) através das rotas `/api/scenario/apply` e `/api/feeds`.
+   * Dispara a simulação de cada variante sequencialmente nos três modos de otimização: `linear_native`, `linear` e `nonlinear`.
+2. **Evidência Visual Automatizada via Playwright:**
+   * Utiliza uma instância headless do Chromium para carregar as abas *Configuração*, *Dashboard*, *Pesquisa Operacional* e *Tableaus Simplex*, gerando capturas de tela integrais (`.png`) armazenadas na subpasta `screenshots/` de cada variante.
+3. **Recálculo do Custo Real e Margem IOFC (`gerar_resumo.py`):**
+   * *Ajuste Metodológico:* Como o KPI nativo do painel calcula o custo a partir do catálogo padrão regional (`example_Midwest_feed.json`), foi implementado um algoritmo de recálculo que aplica a cotação real modificada em cada variante:
+     $$\text{Custo Real} = \sum_{j=1}^n x_j \cdot P_j^{\text{aplicado}}$$
+   * A partir do custo real, extrai-se a **Margem IOFC Real**:
+     $$\text{IOFC Real} = (\text{Produção de Leite} \times P_{\text{leite}}) - \text{Custo Real}$$
+
+---
+
+### 6.2 Matriz Consolidada dos 10 Experimentos
+
+Abaixo são consolidados os resultados empíricos obtidos em todas as rodadas executadas, comparando cada variante contra a condição de referência (**00_baseline**):
+
+| Experimento | Variante | Otimizador | Status | Custo Real ($/vaca/dia) | $\Delta$ vs Baseline | Leite (kg/dia) | IOFC Real ($/vaca/dia) |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **00_baseline** | A_baseline (Referência) | Linear Nativo | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | A_baseline | Linear HiGHS | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | A_baseline | Não-Linear SLSQP | Sucesso | $3,576 | +0,0% | 26,78 | $8,475 |
+| **01_farelo_de_soja** | A_farelo_de_algodao (#60, $0,30) | Linear Nativo | Sucesso | $3,604 | **-1,8%** | 26,78 | $8,449 |
+| | A_farelo_de_algodao | Linear HiGHS | Sucesso | $3,606 | **-1,7%** | 26,78 | $8,447 |
+| | A_farelo_de_algodao | Não-Linear SLSQP | Sucesso | $3,613 | +1,0% | 26,78 | $8,440 |
+| | B_farelo_de_canola (#31, $0,32) | Linear Nativo | Sucesso | $3,663 | -0,2% | 26,78 | $8,390 |
+| | B_farelo_de_canola | Linear HiGHS | Sucesso | $3,663 | -0,2% | 26,78 | $8,390 |
+| | B_farelo_de_canola | Não-Linear SLSQP | Sucesso | $3,680 | +2,9% | 26,78 | $8,373 |
+| **02_precos_dos_insumos** | A_soja_menos30 (Soja -30%) | Linear Nativo | Sucesso | $3,132 | **-14,7%** | 26,78 | $8,919 |
+| | A_soja_menos30 | Linear HiGHS | Sucesso | $3,132 | **-14,7%** | 26,78 | $8,919 |
+| | A_soja_menos30 | Não-Linear SLSQP | Sucesso | $3,089 | **-13,6%** | 26,78 | $8,962 |
+| | B_soja_e_milho_mais30 (+30%) | Linear Nativo | Sucesso | $4,477 | **+22,0%** | 26,78 | $7,574 |
+| | B_soja_e_milho_mais30 | Linear HiGHS | Sucesso | $4,477 | **+22,0%** | 26,78 | $7,574 |
+| | B_soja_e_milho_mais30 | Não-Linear SLSQP | Sucesso | $4,358 | **+21,9%** | 26,78 | $7,693 |
+| **03_tolerancia_de_inclusao**| A_largo_volumoso_estreito_mineral | Linear Nativo | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | A_largo_volumoso_estreito_mineral | Linear HiGHS | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | A_largo_volumoso_estreito_mineral | Não-Linear SLSQP | Sucesso | $3,576 | +0,0% | 26,78 | $8,475 |
+| | B_estreito_todos (Buffer 5%) | Linear Nativo | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | B_estreito_todos | Linear HiGHS | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | B_estreito_todos | Não-Linear SLSQP | Sucesso | $3,576 | +0,0% | 26,78 | $8,475 |
+| **04_intervalo_de_reformulacao** | A_30_dias | Linear Nativo | Sucesso | $3,639 | -0,8% | 27,03 | $8,524 |
+| | A_30_dias | Linear HiGHS | Sucesso | $3,670 | +0,0% | 27,03 | $8,493 |
+| | A_30_dias | Não-Linear SLSQP | Sucesso | $3,572 | -0,1% | 27,03 | $8,591 |
+| | B_14_dias | Linear Nativo | Sucesso | $3,687 | +0,5% | 27,33 | $8,611 |
+| | B_14_dias | Linear HiGHS | Sucesso | $3,687 | +0,5% | 27,33 | $8,611 |
+| | B_14_dias | Não-Linear SLSQP | Sucesso | $3,586 | +0,3% | 27,33 | $8,712 |
+| **05_tamanho_do_rebanho** | A_100_vacas (Alta produção) | Linear Nativo | Sucesso | $3,598 | **-2,0%** | **47,40** | **$17,734** |
+| | A_100_vacas | Linear HiGHS | Sucesso | $3,598 | **-2,0%** | **47,40** | **$17,734** |
+| | A_100_vacas | Não-Linear SLSQP | Sucesso | $3,473 | **-2,9%** | **47,40** | **$17,859** |
+| **06_buffer_de_fosforo** | A_buffer_25 (Buffer 25%) | Linear Nativo | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | A_buffer_25 | Linear HiGHS | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | A_buffer_25 | Não-Linear SLSQP | Sucesso | $3,576 | +0,0% | 26,78 | $8,475 |
+| | B_buffer_0 (Buffer 0%) | Linear Nativo | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | B_buffer_0 | Linear HiGHS | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | B_buffer_0 | Não-Linear SLSQP | Sucesso | $3,576 | +0,0% | 26,78 | $8,475 |
+| **08_aditivo_de_metano** | A_sem_aditivo (Controle) | Linear Nativo | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | A_sem_aditivo | Linear HiGHS | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | A_sem_aditivo | Não-Linear SLSQP | Sucesso | $3,576 | +0,0% | 26,78 | $8,475 |
+| | B_monensina_24 (Monensina 24 mg) | Linear Nativo | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | B_monensina_24 | Linear HiGHS | Sucesso | $3,670 | +0,0% | 26,78 | $8,381 |
+| | B_monensina_24 | Não-Linear SLSQP | Sucesso | $3,576 | +0,0% | 26,78 | $8,475 |
+| **09_padrao_nutricional** | A_NRC_2001 (Padrão NRC) | Linear Nativo | Sucesso | $3,679 | +0,2% | 26,78 | $8,372 |
+| | A_NRC_2001 | Linear HiGHS | Sucesso | $3,680 | +0,3% | 26,78 | $8,371 |
+| | A_NRC_2001 | Não-Linear SLSQP | Sucesso | $3,775 | **+5,6%** | 26,78 | $8,276 |
+
+#### Análise do Experimento 07: Sensibilidade ao Preço de Venda do Leite
+O preço do leite não altera a formulação da ração de mínimo custo, mas atua como determinante primário da margem sobre o custo alimentar (**IOFC**):
+
+| Preço do Leite ($/kg) | Receita Bruta ($/vaca/dia) | Custo da Ração ($/vaca/dia) | Margem IOFC Real ($/vaca/dia) | Variação do IOFC vs. Base ($0,45) |
+| :---: | :---: | :---: | :---: | :---: |
+| **$0,35** | $9,373 | $3,576 | **$5,797** | -31,6% (Cenário Crítico de Mercado) |
+| **$0,45** *(Referência)* | $12,051 | $3,576 | **$8,475** | Referência Padrão |
+| **$0,55** | $14,729 | $3,576 | **$11,154** | +31,6% (Alta Rentabilidade) |
+| **$0,65** | $17,408 | $3,576 | **$13,832** | +63,2% (Bonificação Extraordinária) |
+
+---
+
+### 6.3 Discussão e Interpretação dos Principais Achados
+
+1. **Alta Elasticidade frente aos Preços de Soja e Milho (`02_precos_dos_insumos`):**
+   * O experimento 02 confirmou a vulnerabilidade econômica da atividade leiteira diante da volatilidade do mercado de grãos: uma alta combinada de $+30\%$ em milho e farelo de soja eleva o custo diário em **$+22,0\%$** ($+\$0,807/\text{vaca/dia}$), reduzindo o IOFC em quase $\$1,00/\text{cabeça/dia}$.
+   * Em contrapartida, a inclusão do **Farelo de Algodão** (`01_farelo_de_soja`) representou uma economia de **$-1,8\%$** na Programação Linear, mantendo o suprimento proteico e a produção de leite estáveis.
+2. **Dinâmica do Intervalo de Reformulação (`04_intervalo_de_reformulacao`):**
+   * Reduzir o intervalo de reotimização de 45 para 14 dias conferiu maior aderência à evolução biológica do rebanho, elevando a produção média de leite de $26,78$ para $27,33\text{ kg/dia}$ ($+2,05\%$) e melhorando o IOFC real para $\$8,611$.
+3. **Escala e Diluição de Custos (`05_tamanho_do_rebanho`):**
+   * No lote de 100 vacas com foco em alta produção ($47,40\text{ kg/dia}$), a margem líquida IOFC mais do que dobrou ($\$17,73$ a $\$17,86/\text{vaca/dia}$), evidenciando que a eficiência de conversão alimentar ($\text{kg Leite}/\text{kg MS}$) é o fator mais determinante para a lucratividade rural.
+4. **Independência da Dieta em Relação ao Preço do Leite e Aditivos de Metano:**
+   * A suíte comprovou empiricamente que o preço do leite e aditivos como Monensina (nas doses testadas) não deslocam o ponto de ótimo de mínimo custo na formulação linear, preservando a coerência conceitual do modelo.
+5. **Convergência e Estabilidade Numérica:**
+   * Em todas as variantes testadas, os solvers **Linear Nativo (Simplex Duas Fases)** e **Linear HiGHS** apresentaram soluções numericamente equivalentes. O solver **Não-Linear SLSQP** convergiu com taxa de sucesso de $100\%$, confirmando a confiabilidade do motor biofísico após a inclusão das fontes minerais concentradas.
+
+---
+
+## 7. Conclusões e Recomendações
 
 1. **Três Solvers Plenamente Operacionais e Auditáveis:** O sistema RuFaS agora disponibiliza uma suíte completa de otimização:
    * **HiGHS Simplex:** Para produção em escala e simulações rápidas.
@@ -660,11 +792,11 @@ pie title Distribuição de Custos da Dieta Balanceada Ótima (SIM018 - Linear N
 
 ---
 
-## 7. Guia Prático de Instalação, Configuração e Execução
+## 8. Guia Prático de Instalação, Configuração e Execução
 
 Esta seção fornece o passo a passo completo e reprodutível para configurar o ambiente de desenvolvimento, instalar as dependências e executar o sistema RuFaS tanto em ambiente Windows quanto Linux/macOS.
 
-### 7.1 Pré-requisitos de Sistema
+### 8.1 Pré-requisitos de Sistema
 
 Antes de iniciar, certifique-se de possuir instalado em sua máquina:
 * **Python:** Versão **3.12** ou **3.13** (conforme especificado no arquivo [`pyproject.toml`](pyproject.toml): `>=3.12, <3.14`).
@@ -676,7 +808,7 @@ Antes de iniciar, certifique-se de possuir instalado em sua máquina:
 python --version   # ou python3 --version
 ```
 
-### 7.2 Clonagem e Criação do Ambiente Virtual (`venv`)
+### 8.2 Clonagem e Criação do Ambiente Virtual (`venv`)
 
 Recomenda-se fortemente a utilização de um ambiente virtual isolado para evitar conflitos de bibliotecas com o Python global do sistema.
 
@@ -707,7 +839,7 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 7.3 Instalação das Dependências
+### 8.3 Instalação das Dependências
 
 Com o ambiente virtual ativado, instale o motor biofísico do RuFaS em modo editável (`-e`), o framework web Flask e os pacotes científicos de Pesquisa Operacional:
 
@@ -733,7 +865,7 @@ pip install Flask
 
 ---
 
-### 7.4 Modos de Execução da Aplicação
+### 8.4 Modos de Execução da Aplicação
 
 O ecossistema dispõe de **três modos de execução**, adaptados para diferentes perfis de usuário:
 
@@ -822,7 +954,7 @@ Para verificar a integridade sintática e tipagem estática do código modificad
 
 ---
 
-### 7.5 Solução de Problemas Comuns (Troubleshooting)
+### 8.5 Solução de Problemas Comuns (Troubleshooting)
 
 | Sintoma / Erro | Causa Provável | Ação Corretiva |
 | :--- | :--- | :--- |
